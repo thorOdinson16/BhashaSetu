@@ -190,6 +190,9 @@ class Pipeline:
         entities_future = asyncio.get_event_loop().run_in_executor(
             executor, self._extract_entities, transcript, target_lang
         )
+        translate_future = asyncio.get_event_loop().run_in_executor(
+            executor, self._enhanced_translate, transcript, target_lang
+        )
 
         (audio_path, tts_time, tts_err) = await tts_future
         audio_b64 = None
@@ -198,17 +201,16 @@ class Pipeline:
         wall_total = round(time.time() - wall_start, 2)
 
         async def _wait_llm():
-            llm_result = await entities_future
-            if not on_entities or not llm_result or llm_result.get("error"):
+            ents, trans = await entities_future, await translate_future
+            if not on_entities:
                 return
-            # If combined prompt missed translation, fallback to separate call
-            if not llm_result.get("translation"):
-                fallback = self._enhanced_translate(transcript, target_lang)
-                if fallback:
-                    llm_result["translation"] = fallback
-            llm_result["_llm_latency"] = llm_result.get("_llm_latency", 0)
-            llm_result["_target"] = target_lang
-            await on_entities(llm_result, transcript, translated)
+            # Build result from whichever calls succeeded
+            result = ents if ents and not ents.get("error") else {}
+            if not result.get("translation") and trans:
+                result["translation"] = trans
+            result["_target"] = target_lang
+            result["_llm_latency"] = ents.get("_llm_latency", 0) if ents else 0
+            await on_entities(result, transcript, translated)
 
         asyncio.create_task(_wait_llm())
 
