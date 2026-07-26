@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bhasha Setu</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+  .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+  h1 { font-size: 1.5rem; margin-bottom: 1rem; color: #fff; }
+  h1 span { color: #4caf50; }
+
+  .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+
+  .lang-select { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  .lang-select select { background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 8px 12px; border-radius: 6px; font-size: 14px; }
+
+  .upload-area { border: 2px dashed #444; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+  .upload-area:hover { border-color: #4caf50; }
+  .upload-area input { display: none; }
+  .upload-area p { color: #888; font-size: 14px; }
+
+  button { background: #4caf50; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  button:hover { background: #43a047; }
+  button:disabled { background: #333; color: #666; cursor: not-allowed; }
+  button.sec { background: #333; }
+  button.sec:hover { background: #444; }
+
+  .result { display: none; }
+  .result.show { display: block; }
+
+  .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 250px; }
+
+  .transcript-box { background: #111; border: 1px solid #333; border-radius: 6px; padding: 1rem; margin-bottom: 0.75rem; max-height: 150px; overflow-y: auto; font-size: 14px; line-height: 1.5; }
+  .label { font-size: 12px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 0.25rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 0.5rem; }
+  th, td { border: 1px solid #333; padding: 8px 12px; text-align: left; }
+  th { background: #222; color: #aaa; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  s { color: #888; }
+
+  .receipt-link { color: #4caf50; text-decoration: none; font-size: 14px; word-break: break-all; }
+  .receipt-link:hover { text-decoration: underline; }
+
+  .timing { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .timing span { background: #222; padding: 4px 10px; border-radius: 12px; font-size: 12px; color: #aaa; }
+
+  .status { padding: 4px 10px; border-radius: 12px; font-size: 12px; display: inline-block; }
+  .status.ok { background: #1b5e20; color: #4caf50; }
+  .status.err { background: #b71c1c; color: #ef5350; }
+  .status.pending { background: #e65100; color: #ff9800; }
+
+  audio { width: 100%; margin-top: 0.5rem; }
+
+  .loading { text-align: center; padding: 2rem; color: #888; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #333; border-top-color: #4caf50; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Bhasha <span>Setu</span></h1>
+
+  <div class="card">
+    <div class="lang-select">
+      <div>
+        <div class="label">Source Language</div>
+        <select id="sourceLang">
+          <option value="kn-IN">Kannada</option>
+          <option value="hi-IN">Hindi</option>
+        </select>
+      </div>
+      <div>
+        <div class="label">Target Language</div>
+        <select id="targetLang">
+          <option value="hi-IN">Hindi</option>
+          <option value="kn-IN">Kannada</option>
+        </select>
+      </div>
+      <div>
+        <div class="label">Voice</div>
+        <select id="speaker">
+          <option value="shubh">Shubh</option>
+          <option value="meera">Meera</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="upload-area" id="uploadArea">
+      <p>📁 Drop audio file here or click to upload</p>
+      <p style="font-size:12px; margin-top:4px">.wav, 16kHz mono</p>
+      <input type="file" id="fileInput" accept="audio/wav,.wav">
+    </div>
+    <p id="fileName" style="margin-top:0.5rem; font-size:13px; color:#888;"></p>
+    <button id="processBtn" disabled>Process</button>
+  </div>
+
+  <div id="loading" class="loading" style="display:none">
+    <span class="spinner"></span>Processing...
+  </div>
+
+  <div id="result" class="result">
+    <div class="card">
+      <h3 style="margin-bottom:0.5rem">Result <span class="status" id="statusBadge"></span></h3>
+
+      <div class="row">
+        <div class="col">
+          <div class="label">Transcript (Source)</div>
+          <div class="transcript-box" id="transcript"></div>
+        </div>
+        <div class="col">
+          <div class="label">Translation (Target)</div>
+          <div class="transcript-box" id="translation"></div>
+        </div>
+      </div>
+
+      <div class="label" style="margin-top:0.75rem">Audio Output</div>
+      <audio id="audioPlayer" controls></audio>
+
+      <div class="timing" id="timing"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:0.5rem">Receipt</h3>
+      <div id="receiptSection"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const fileName = document.getElementById('fileName');
+const processBtn = document.getElementById('processBtn');
+const result = document.getElementById('result');
+const loading = document.getElementById('loading');
+let selectedFile = null;
+
+uploadArea.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+  selectedFile = e.target.files[0];
+  if (selectedFile) {
+    fileName.textContent = 'Selected: ' + selectedFile.name;
+    processBtn.disabled = false;
+  }
+});
+
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.borderColor = '#4caf50'; });
+uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = '#444'; });
+uploadArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadArea.style.borderColor = '#444';
+  selectedFile = e.dataTransfer.files[0];
+  if (selectedFile) {
+    fileName.textContent = 'Selected: ' + selectedFile.name;
+    processBtn.disabled = false;
+  }
+});
+
+processBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  processBtn.disabled = true;
+  loading.style.display = 'block';
+  result.classList.remove('show');
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+  formData.append('source_lang', document.getElementById('sourceLang').value);
+  formData.append('target_lang', document.getElementById('targetLang').value);
+  formData.append('speaker', document.getElementById('speaker').value);
+
+  try {
+    const resp = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await resp.json();
+
+    loading.style.display = 'none';
+    result.classList.add('show');
+
+    if (data.error) {
+      document.getElementById('statusBadge').textContent = 'Error';
+      document.getElementById('statusBadge').className = 'status err';
+      document.getElementById('transcript').textContent = data.error;
+      return;
+    }
+
+    document.getElementById('statusBadge').textContent = 'OK';
+    document.getElementById('statusBadge').className = 'status ok';
+
+    document.getElementById('transcript').textContent = data.transcript || '';
+    document.getElementById('translation').textContent = data.translated_text || '';
+
+    const audioUrl = data.audio_url ? data.audio_url : '/audio/' + (data.audio_path || '').split('/').pop();
+    const player = document.getElementById('audioPlayer');
+    player.src = audioUrl;
+
+    const timing = data.timing || {};
+    document.getElementById('timing').innerHTML =
+      `<span>STT ${timing.stt}s</span>` +
+      `<span>TR ${timing.translate}s</span>` +
+      `<span>TTS ${timing.tts}s</span>` +
+      `<span>LLM ${timing.llm}s</span>` +
+      `<span>Total ${timing.total}s</span>`;
+
+    // Receipt
+    const receiptSection = document.getElementById('receiptSection');
+    if (data.receipt_id) {
+      const entities = data.entities || {};
+      const rows = entities.error ? '' : buildReceiptRows(entities);
+      receiptSection.innerHTML = `
+        <table>${rows || '<tr><td colspan="3">Loading receipt...</td></tr>'}</table>
+        <p style="margin-top:0.75rem">
+          <a class="receipt-link" href="/receipt/${data.receipt_id}" target="_blank">📋 Open Receipt</a>
+        </p>`;
+    } else {
+      receiptSection.innerHTML = '<p style="color:#888">No receipt generated</p>';
+    }
+
+  } catch (err) {
+    loading.style.display = 'none';
+    result.classList.add('show');
+    document.getElementById('statusBadge').textContent = 'Error';
+    document.getElementById('statusBadge').className = 'status err';
+    document.getElementById('transcript').textContent = err.message;
+  } finally {
+    processBtn.disabled = false;
+  }
+});
+
+function buildReceiptRows(entities) {
+  const fields = ['date','time','name','phone','address','amount'];
+  let rows = '<tr><th>Entity</th><th>Value</th><th>Correction</th></tr>';
+  for (const f of fields) {
+    const val = entities[f];
+    const oldVal = entities.correction_old_value;
+    const newVal = entities.correction_new_value;
+    const isCorrected = entities.correction_detected && f === (entities.amount ? 'amount' : 'date');
+    const cellVal = val || '—';
+    let corrCell = '—';
+    if (isCorrected && oldVal && newVal) {
+      corrCell = `<s>${oldVal}</s> → <strong>${newVal}</strong>`;
+    }
+    rows += `<tr><td>${f}</td><td>${cellVal}</td><td>${corrCell}</td></tr>`;
+  }
+  return rows;
+}
+</script>
+</body>
+</html>

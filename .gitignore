@@ -1,0 +1,7 @@
+.env
+venv/
+__pycache__/
+uploads/
+*.pyc
+output.wav
+output_relay.wav

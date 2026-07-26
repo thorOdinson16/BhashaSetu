@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bhasha Setu — Live</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+  .container { max-width: 800px; margin: 0 auto; padding: 1rem; }
+  h1 { font-size: 1.3rem; margin-bottom: 0.25rem; }
+  h1 span { color: #4caf50; }
+  .subtitle { font-size: 12px; color: #888; margin-bottom: 1rem; }
+
+  .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+
+  .lang-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
+  .lang-bar select { background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; font-size: 13px; }
+  .lang-bar label { font-size: 12px; color: #888; }
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: 8px; }
+  .badge.kn { background: #1a237e; color: #7986cb; }
+  .badge.hi { background: #4a148c; color: #ce93d8; }
+
+  .rec-area { text-align: center; padding: 1.5rem; }
+  .rec-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #4caf50; color: #fff; font-size: 32px; cursor: pointer; transition: all 0.2s; }
+  .rec-btn:hover { background: #43a047; transform: scale(1.05); }
+  .rec-btn.recording { background: #f44336; animation: pulse 1s infinite; }
+  .rec-btn:disabled { background: #333; cursor: not-allowed; animation: none; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(244,67,54,0.4); } 50% { box-shadow: 0 0 0 16px rgba(244,67,54,0); } }
+  .rec-label { font-size: 12px; color: #888; margin-top: 0.5rem; }
+
+  .transcript-box { background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-bottom: 0.5rem; font-size: 13px; line-height: 1.5; max-height: 120px; overflow-y: auto; }
+  .label { font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: 0.5px; margin-bottom: 2px; }
+
+  .entity-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .entity-chip { background: #222; border: 1px solid #444; border-radius: 4px; padding: 4px 10px; font-size: 12px; }
+  .entity-chip s { color: #888; margin-right: 3px; }
+  .entity-chip .corrected { color: #4caf50; }
+
+  audio { width: 100%; margin-top: 0.5rem; height: 36px; }
+
+  .actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  button { background: #4caf50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #43a047; }
+  button.sec { background: #333; }
+  button.sec:hover { background: #444; }
+  button:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+  .receipt-link { color: #4caf50; font-size: 13px; word-break: break-all; margin-top: 0.5rem; display: inline-block; }
+
+  .status-line { font-size: 11px; color: #666; margin-top: 0.25rem; }
+  .connected { color: #4caf50; }
+  .error { color: #f44336; font-size: 12px; margin-top: 0.25rem; }
+
+  .loading-overlay { text-align: center; padding: 1rem; color: #888; font-size: 13px; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-top-color: #4caf50; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Bhasha <span>Setu</span></h1>
+  <p class="subtitle">Session: <span id="sessionId">—</span> · You: <span id="participantId">—</span> · <span id="wsStatus" style="color:#f44336">Connecting...</span></p>
+
+  <div class="card">
+    <div class="lang-bar">
+      <label>I speak:</label>
+      <select id="myLang" onchange="setLang()">
+        <option value="kn-IN">Kannada</option>
+        <option value="hi-IN">Hindi</option>
+      </select>
+      <span class="badge kn" id="myBadge">KN</span>
+      <span style="color:#888; font-size:12px;">→</span>
+      <span class="badge hi" id="targetBadge">HI</span>
+    </div>
+
+    <div class="rec-area">
+      <button class="rec-btn" id="recBtn" onclick="toggleRecord()">🎤</button>
+      <p class="rec-label" id="recLabel">Tap to speak</p>
+      <div id="loadBar" class="loading-overlay" style="display:none"><span class="spinner"></span>Processing...</div>
+      <p id="errorMsg" class="error"></p>
+    </div>
+
+    <div class="label">You said (transcript)</div>
+    <div class="transcript-box" id="myTranscript">—</div>
+
+    <div class="label">Translation</div>
+    <div class="transcript-box" id="myTranslation">—</div>
+
+    <audio id="myAudio" controls style="display:none"></audio>
+    <div class="label" style="margin-top:0.5rem">Timing</div>
+    <div id="myTiming" style="font-size:11px;color:#888"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:14px; margin-bottom:0.5rem;">🤝 From the other side</h3>
+    <div class="transcript-box" id="peerTranscript">Waiting...</div>
+    <audio id="peerAudio" controls style="display:none"></audio>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:14px; margin-bottom:0.5rem;">📋 Shared Facts</h3>
+    <div class="entity-row" id="entityRow"></div>
+    <div class="actions">
+      <button onclick="getReceipt()">📄 Generate Receipt</button>
+    </div>
+    <div id="receiptLink"></div>
+  </div>
+</div>
+
+<script>
+const LANG_MAP = { 'kn-IN': 'hi-IN', 'hi-IN': 'kn-IN' };
+const sessionId = new URLSearchParams(window.location.search).get('s') || 'default';
+document.getElementById('sessionId').textContent = sessionId;
+
+let ws, participantId, mediaRecorder, audioChunks = [], recording = false;
+let myLangVal = document.getElementById('myLang').value;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws/${sessionId}`);
+
+  ws.onopen = () => {
+    document.getElementById('wsStatus').textContent = 'Connected';
+    document.getElementById('wsStatus').className = 'connected';
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    switch(msg.type) {
+      case 'joined':
+        participantId = msg.participant_id;
+        document.getElementById('participantId').textContent = participantId;
+        break;
+      case 'relay':
+        handleRelay(msg);
+        break;
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById('wsStatus').textContent = 'Disconnected';
+    document.getElementById('wsStatus').className = '';
+    setTimeout(connect, 2000);
+  };
+}
+
+function setLang() {
+  myLangVal = document.getElementById('myLang').value;
+  const lang = myLangVal;
+  document.getElementById('myBadge').textContent = lang === 'kn-IN' ? 'KN' : 'HI';
+  document.getElementById('myBadge').className = `badge ${lang === 'kn-IN' ? 'kn' : 'hi'}`;
+  const tl = LANG_MAP[lang];
+  document.getElementById('targetBadge').textContent = tl === 'kn-IN' ? 'KN' : 'HI';
+  document.getElementById('targetBadge').className = `badge ${tl === 'kn-IN' ? 'kn' : 'hi'}`;
+}
+
+async function toggleRecord() {
+  if (recording) {
+    mediaRecorder.stop();
+    recording = false;
+    document.getElementById('recBtn').classList.remove('recording');
+    document.getElementById('recLabel').textContent = 'Processing...';
+    document.getElementById('recBtn').disabled = true;
+    document.getElementById('loadBar').style.display = 'block';
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      stream.getTracks().forEach(t => t.stop());
+
+      // Upload via REST (proven reliable path)
+      const form = new FormData();
+      form.append('file', blob, 'recording.webm');
+      form.append('source_lang', myLangVal);
+      form.append('target_lang', LANG_MAP[myLangVal]);
+      form.append('speaker', 'shubh');
+
+      try {
+        const resp = await fetch('/upload', { method: 'POST', body: form });
+        const data = await resp.json();
+
+        document.getElementById('loadBar').style.display = 'none';
+        document.getElementById('recBtn').disabled = false;
+        document.getElementById('recLabel').textContent = 'Tap to speak';
+        document.getElementById('errorMsg').textContent = '';
+
+        if (data.error) {
+          document.getElementById('errorMsg').textContent = 'Error: ' + data.error;
+          return;
+        }
+
+        // Show my result
+        document.getElementById('myTranscript').textContent = data.transcript || '';
+        document.getElementById('myTranslation').textContent = data.translated_text || '';
+        const t = data.timing || {};
+        document.getElementById('myTiming').textContent = `STT ${t.stt}s · TR ${t.translate}s · TTS ${t.tts}s · LLM ${t.llm}s · Total ${t.total}s`;
+
+        if (data.audio_b64) {
+          const a = document.getElementById('myAudio');
+          a.src = 'data:audio/wav;base64,' + data.audio_b64;
+          a.style.display = 'block';
+          a.play().catch(() => {});
+        }
+
+        if (data.entities && !data.entities.error) updateEntities(data.entities);
+
+        // Broadcast to other tab via WebSocket
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'relay_broadcast',
+            transcript: data.transcript,
+            translated: data.translated_text,
+            audio_b64: data.audio_b64,
+            entities: data.entities,
+          }));
+        }
+
+      } catch (err) {
+        document.getElementById('loadBar').style.display = 'none';
+        document.getElementById('recBtn').disabled = false;
+        document.getElementById('recLabel').textContent = 'Tap to speak';
+        document.getElementById('errorMsg').textContent = 'Upload failed: ' + err.message;
+      }
+    };
+
+    mediaRecorder.start();
+    recording = true;
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('recLabel').textContent = 'Recording...';
+    document.getElementById('errorMsg').textContent = '';
+
+  } catch (err) {
+    document.getElementById('errorMsg').textContent = 'Mic error: ' + err.message;
+  }
+}
+
+function handleRelay(msg) {
+  document.getElementById('peerTranscript').textContent = msg.translated || '';
+  if (msg.audio_b64) {
+    const a = document.getElementById('peerAudio');
+    a.src = 'data:audio/wav;base64,' + msg.audio_b64;
+    a.style.display = 'block';
+    a.play().catch(() => {});
+  }
+  if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
+}
+
+const sharedEntities = {};
+
+function updateEntities(entities) {
+  if (!entities || entities.error) return;
+  const fields = ['date','time','name','phone','address','amount'];
+  for (const f of fields) {
+    if (entities[f]) sharedEntities[f] = entities[f];
+  }
+  if (entities.correction_detected) {
+    sharedEntities._correction = { old: entities.correction_old_value, new: entities.correction_new_value };
+  }
+  renderEntities();
+}
+
+function renderEntities() {
+  const row = document.getElementById('entityRow');
+  let html = '';
+  for (const [key, val] of Object.entries(sharedEntities)) {
+    if (key === '_correction') continue;
+    let display = val;
+    if (sharedEntities._correction && (key === 'date' || key === 'amount')) {
+      const c = sharedEntities._correction;
+      if (String(c.new) === String(val)) {
+        display = `<s>${c.old}</s> <span class="corrected">${c.new}</span>`;
+      }
+    }
+    html += `<span class="entity-chip"><strong>${key}:</strong> ${display}</span>`;
+  }
+  row.innerHTML = html || '<span style="color:#666;font-size:12px;">No facts yet</span>';
+}
+
+function getReceipt() {
+  // Use REST for receipt generation
+  const allEnts = [];
+  for (const [k, v] of Object.entries(sharedEntities)) {
+    if (k === '_correction') continue;
+    allEnts.push({ type: k, value: v });
+  }
+  fetch('/api/receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(allEnts),
+  })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('receiptLink').innerHTML =
+        `<a class="receipt-link" href="/receipt/${data.receipt_id}" target="_blank">📋 Open Receipt (${data.receipt_id})</a>`;
+    })
+    .catch(err => {
+      document.getElementById('errorMsg').textContent = 'Receipt failed: ' + err.message;
+    });
+}
+
+connect();
+</script>
+</body>
+</html>

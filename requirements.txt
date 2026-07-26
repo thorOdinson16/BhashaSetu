@@ -1,0 +1,11 @@
+sarvamai
+python-dotenv
+fastapi
+uvicorn[standard]
+websockets
+pydub
+numpy
+librosa
+sounddevice
+httpx
+python-multipart

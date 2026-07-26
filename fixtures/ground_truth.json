@@ -1,0 +1,84 @@
+{
+  "scenario_1": {
+    "description": "Landlord (KN) + Tenant (HI): repair visit scheduling",
+    "turns": [
+      {
+        "speaker": "landlord",
+        "file": "scenario_1_landlord.wav",
+        "lang": "kn-IN",
+        "expected": {
+          "date": "Friday",
+          "time": "10:30",
+          "address": "Third Cross, Jayanagar",
+          "correction_detected": true,
+          "correction_old_value": "Thursday",
+          "correction_new_value": "Friday"
+        }
+      },
+      {
+        "speaker": "tenant",
+        "file": "scenario_1_tenant.wav",
+        "lang": "hi-IN",
+        "expected": {
+          "date": "Friday",
+          "time": "10:30",
+          "phone": "9986054321",
+          "address": "Third Cross, Jayanagar",
+          "correction_detected": false
+        }
+      }
+    ]
+  },
+  "scenario_2": {
+    "description": "Delivery agent (HI) + Customer (KN): package drop",
+    "turns": [
+      {
+        "speaker": "agent",
+        "file": "scenario_2_delivery.wav",
+        "lang": "hi-IN",
+        "expected": {
+          "time": "9:00",
+          "phone": "9986054321",
+          "address": "Third Cross, Jayanagar",
+          "correction_detected": false
+        }
+      },
+      {
+        "speaker": "customer",
+        "file": "scenario_2_customer.wav",
+        "lang": "kn-IN",
+        "expected": {
+          "time": "9:00",
+          "phone": "9986054321",
+          "address": "Third Cross, Jayanagar",
+          "correction_detected": false
+        }
+      }
+    ]
+  },
+  "scenario_3": {
+    "description": "Coworkers (KN + HI): splitting a bill",
+    "turns": [
+      {
+        "speaker": "coworker_a",
+        "file": "scenario_3_coworker_a.wav",
+        "lang": "kn-IN",
+        "expected": {
+          "amount": "520",
+          "correction_detected": true,
+          "correction_old_value": "450",
+          "correction_new_value": "520"
+        }
+      },
+      {
+        "speaker": "coworker_b",
+        "file": "scenario_3_coworker_b.wav",
+        "lang": "hi-IN",
+        "expected": {
+          "amount": "260",
+          "correction_detected": true
+        }
+      }
+    ]
+  }
+}
