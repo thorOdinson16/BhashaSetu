@@ -80,5 +80,36 @@
         }
       }
     ]
+  },
+  "scenario_4": {
+    "description": "Unseen: Meetup scheduling (KN + HI) with date correction",
+    "turns": [
+      {
+        "speaker": "speaker_a",
+        "file": "scenario_4_a.wav",
+        "lang": "kn-IN",
+        "expected": {
+          "date": "Sunday",
+          "time": "11:00",
+          "address": "Gandhi Bazaar",
+          "amount": "750",
+          "correction_detected": true,
+          "correction_old_value": "Saturday",
+          "correction_new_value": "Sunday"
+        }
+      },
+      {
+        "speaker": "speaker_b",
+        "file": "scenario_4_b.wav",
+        "lang": "hi-IN",
+        "expected": {
+          "date": "Sunday",
+          "phone": "9876543210",
+          "address": "Gandhi Bazaar",
+          "amount": "750",
+          "correction_detected": false
+        }
+      }
+    ]
   }
 }

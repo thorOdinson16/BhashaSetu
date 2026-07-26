@@ -17,21 +17,12 @@ load_dotenv()
 
 executor = ThreadPoolExecutor(max_workers=6)
 
-ENTITY_PROMPT = """Extract entities from this transcript as structured JSON.
-Return ONLY valid JSON, no other text. No markdown fences.
+ENTITY_PROMPT = """Extract entities AND translate to Hindi. JSON only, no markdown.
 
 Transcript: "{transcript}"
 
-Keys (use null if not present):
-- date: final agreed date after any correction
-- time: time mentioned
-- name: person name
-- phone: phone number
-- address: address or location
-- amount: monetary amount
-- correction_detected: true if self-correction was found
-- correction_old_value: original value before correction, or null
-- correction_new_value: corrected final value, or null"""
+Return:
+{{"translation":"natural Hindi translation","date":"final date after correction or null","time":"time or null","name":"person name or null","phone":"phone or null","address":"address or null","amount":"amount or null","correction_detected":true/false,"correction_old_value":"old or null","correction_new_value":"new or null"}}"""
 
 RECEIPT_PROMPT = """Generate a bilingual receipt in Kannada and Hindi from these entities.
 Return ONLY valid JSON, no other text. No markdown fences.

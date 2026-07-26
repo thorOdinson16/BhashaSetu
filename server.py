@@ -108,14 +108,14 @@ async def upload_and_relay(
                 "generated_at": time.strftime("%H:%M:%S"),
             }
 
-            # Broadcast to all connections
+            # Broadcast to all connections with better translation
             for conn in session.get("connections", []):
                 try:
                     await conn.send_json({
                         "type": "entities",
                         "entities": entities,
                         "transcript": transcript,
-                        "translated": translated,
+                        "translated": entities.get("translation", translated),
                         "receipt_id": rid,
                     })
                 except Exception:

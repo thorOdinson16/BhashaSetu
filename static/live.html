@@ -152,6 +152,10 @@ function connect() {
         break;
       case 'entities':
         if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
+        // Update with better LLM translation
+        if (msg.translated) {
+          document.getElementById('myTranslation').textContent = msg.translated;
+        }
         if (msg.receipt_id) {
           const list = document.getElementById('receiptList');
           if (list.querySelector('.no-receipts')) list.innerHTML = '';
