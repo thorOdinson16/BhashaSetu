@@ -10,6 +10,8 @@
   .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
   h1 { font-size: 1.5rem; margin-bottom: 1rem; color: #fff; }
   h1 span { color: #4caf50; }
+  .nav-btn { display: inline-block; background: #1a1a1a; border: 1px solid #333; color: #aaa; padding: 5px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; cursor: pointer; }
+  .nav-btn:hover { background: #222; color: #fff; }
 
   .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
 
@@ -61,7 +63,11 @@
 </head>
 <body>
 <div class="container">
-  <h1>Bhasha <span>Setu</span></h1>
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h1 style="margin:0;">Bhasha <span>Setu</span></h1>
+    <a href="/" class="nav-btn">🌐 Live Bridge</a>
+  </div>
+  <p style="font-size:12px;color:#888;margin-bottom:1rem;">File Upload Testing</p>
 
   <div class="card">
     <div class="lang-select">

@@ -38,6 +38,11 @@ async def index():
     return (STATIC_DIR / "live.html").read_text(encoding="utf-8")
 
 
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_page():
+    return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+
+
 @app.get("/live", response_class=HTMLResponse)
 async def live():
     return (STATIC_DIR / "live.html").read_text(encoding="utf-8")

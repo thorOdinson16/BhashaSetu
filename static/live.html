@@ -64,11 +64,16 @@
   .log-entry .tgt { color: #888; margin-top: 2px; }
   .receipt-item { font-size: 12px; margin-bottom: 4px; }
   .receipt-item a { color: #4caf50; }
+  .nav-btn { display: inline-block; background: #1a1a1a; border: 1px solid #333; color: #aaa; padding: 5px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; cursor: pointer; vertical-align: middle; }
+  .nav-btn:hover { background: #222; color: #fff; }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Bhasha <span>Setu</span></h1>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+    <h1 style="margin:0;">Bhasha <span>Setu</span></h1>
+    <a href="/upload" class="nav-btn">📁 Upload Test</a>
+  </div>
   <p class="subtitle">Session: <span id="sessionId">—</span> · You: <span id="participantId">—</span> · <span id="wsStatus" style="color:#f44336">Connecting...</span><br><span style="font-size:10px;color:#555;">Share this URL with the other speaker</span></p>
 
   <div class="card">
