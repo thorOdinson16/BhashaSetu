@@ -146,8 +146,9 @@ if (!window.location.search.includes('s=')) {
   history.replaceState(null, '', '?s=' + sessionId);
 }
 
-let ws, participantId, mediaRecorder, audioChunks = [], recording = false;
+let ws, participantId, recording = false;
 let myLangVal = document.getElementById('myLang').value;
+let audioCtx, scriptNode, pcmSamples = [], pcmStream;
 
 function copyLink() {
   navigator.clipboard.writeText(window.location.href).then(() => {
@@ -155,6 +156,23 @@ function copyLink() {
     btn.textContent = '✅ Copied!';
     setTimeout(() => { btn.textContent = '📋 Copy Link'; }, 1500);
   });
+}
+
+// WAV encoder — produces a valid WAV blob from PCM samples
+function encodeWAV(samples, rate) {
+  const buf = new ArrayBuffer(44 + samples.length * 2);
+  const v = new DataView(buf);
+  function w(s, o, t) { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); }
+  w('RIFF', 0); v.setUint32(4, 36 + samples.length * 2, true); w('WAVE', 8);
+  w('fmt ', 12); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w('data', 36); v.setUint32(40, samples.length * 2, true);
+  let off = 44;
+  for (let i = 0; i < samples.length; i++, off += 2) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([buf], { type: 'audio/wav' });
 }
 
 function connect() {
@@ -221,92 +239,94 @@ function setLang() {
 
 async function toggleRecord() {
   if (recording) {
-    mediaRecorder.stop();
     recording = false;
     document.getElementById('recBtn').classList.remove('recording');
-    document.getElementById('recLabel').textContent = 'Processing...';
     document.getElementById('recBtn').disabled = true;
+    document.getElementById('recLabel').textContent = 'Processing...';
     document.getElementById('loadBar').style.display = 'block';
+    
+    // Stop script processor → get PCM samples → encode WAV → upload
+    scriptNode.disconnect();
+    pcmStream.getTracks().forEach(t => t.stop());
+    const wavBlob = encodeWAV(pcmSamples, 16000);
+    pcmSamples = [];
+    await uploadAudio(wavBlob);
     return;
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-    audioChunks = [];
+    pcmStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const source = audioCtx.createMediaStreamSource(pcmStream);
+    scriptNode = audioCtx.createScriptProcessor(4096, 1, 1);
+    pcmSamples = [];
 
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunks.push(e.data);
+    scriptNode.onaudioprocess = (e) => {
+      if (!recording) return;
+      const input = e.inputBuffer.getChannelData(0);
+      for (let i = 0; i < input.length; i++) pcmSamples.push(input[i]);
     };
 
-    mediaRecorder.onstop = async () => {
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      stream.getTracks().forEach(t => t.stop());
-
-      // Upload via REST (proven reliable path)
-      const form = new FormData();
-      form.append('file', blob, 'recording.webm');
-      form.append('source_lang', myLangVal);
-      form.append('target_lang', LANG_MAP[myLangVal]);
-      form.append('speaker', 'shubh');
-      form.append('session_id', sessionId);
-
-      try {
-        const resp = await fetch('/upload', { method: 'POST', body: form });
-        const data = await resp.json();
-
-        document.getElementById('loadBar').style.display = 'none';
-        document.getElementById('recBtn').disabled = false;
-        document.getElementById('recLabel').textContent = 'Tap to speak';
-        document.getElementById('errorMsg').textContent = '';
-
-        if (data.error) {
-          document.getElementById('errorMsg').textContent = 'Error: ' + data.error;
-          return;
-        }
-
-        // Show result immediately (audio at ~5s, entities arrive later via WS)
-        document.getElementById('myTranscript').textContent = data.transcript || '';
-        document.getElementById('myTranslation').textContent = data.translated_text || '';
-        const t = data.timing || {};
-        document.getElementById('myTiming').textContent = `STT ${t.stt}s · TR ${t.translate}s · TTS ${t.tts}s · Total ${t.total}s`;
-
-        if (data.audio_b64) {
-          const a = document.getElementById('myAudio');
-          a.src = 'data:audio/wav;base64,' + data.audio_b64;
-          a.style.display = 'block';
-          a.play().catch(() => {});
-        }
-
-        // Append to conversation log
-        addLogEntry('you', myLangVal, data.transcript, data.translated_text);
-
-        // Broadcast to other tab via WebSocket
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'relay_broadcast',
-            transcript: data.transcript,
-            translated: data.translated_text,
-            audio_b64: data.audio_b64,
-          }));
-        }
-
-      } catch (err) {
-        document.getElementById('loadBar').style.display = 'none';
-        document.getElementById('recBtn').disabled = false;
-        document.getElementById('recLabel').textContent = 'Tap to speak';
-        document.getElementById('errorMsg').textContent = 'Upload failed: ' + err.message;
-      }
-    };
-
-    mediaRecorder.start();
+    source.connect(scriptNode);
+    scriptNode.connect(audioCtx.destination);
     recording = true;
     document.getElementById('recBtn').classList.add('recording');
     document.getElementById('recLabel').textContent = 'Recording...';
     document.getElementById('errorMsg').textContent = '';
-
   } catch (err) {
-    document.getElementById('errorMsg').textContent = 'Mic error: ' + err.message;
+    document.getElementById('errorMsg').textContent = 'Mic: ' + err.message;
+  }
+}
+
+async function uploadAudio(wavBlob) {
+  const form = new FormData();
+  form.append('file', wavBlob, 'recording.wav');
+  form.append('source_lang', myLangVal);
+  form.append('target_lang', LANG_MAP[myLangVal]);
+  form.append('speaker', 'shubh');
+  form.append('session_id', sessionId);
+
+  try {
+    const resp = await fetch('/upload', { method: 'POST', body: form });
+    const data = await resp.json();
+
+    document.getElementById('loadBar').style.display = 'none';
+    document.getElementById('recBtn').disabled = false;
+    document.getElementById('recLabel').textContent = 'Tap to speak';
+    document.getElementById('errorMsg').textContent = '';
+
+    if (data.error) {
+      document.getElementById('errorMsg').textContent = 'Error: ' + data.error;
+      return;
+    }
+
+    document.getElementById('myTranscript').textContent = data.transcript || '';
+    document.getElementById('myTranslation').textContent = data.translated_text || '';
+    const t = data.timing || {};
+    document.getElementById('myTiming').textContent = `STT ${t.stt}s · TR ${t.translate}s · TTS ${t.tts}s · Total ${t.total}s`;
+
+    if (data.audio_b64) {
+      const a = document.getElementById('myAudio');
+      a.src = 'data:audio/wav;base64,' + data.audio_b64;
+      a.style.display = 'block';
+      a.play().catch(() => {});
+    }
+
+    addLogEntry('you', myLangVal, data.transcript, data.translated_text);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'relay_broadcast',
+        transcript: data.transcript,
+        translated: data.translated_text,
+        audio_b64: data.audio_b64,
+      }));
+    }
+  } catch (err) {
+    document.getElementById('loadBar').style.display = 'none';
+    document.getElementById('recBtn').disabled = false;
+    document.getElementById('recLabel').textContent = 'Tap to speak';
+    document.getElementById('errorMsg').textContent = 'Upload failed: ' + err.message;
   }
 }
 

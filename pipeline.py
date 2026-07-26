@@ -5,7 +5,6 @@ import json
 import time
 import asyncio
 import tempfile
-import subprocess
 import base64
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -52,24 +51,6 @@ JSON format:
 }}"""
 
 LANGS = {"kn-IN": "Kannada", "hi-IN": "Hindi"}
-
-
-def _convert_audio(raw_bytes: bytes) -> bytes:
-    """Convert non-WAV audio to proper 16kHz WAV. WAV passes through unchanged."""
-    if raw_bytes[:4] == b"RIFF":
-        return raw_bytes
-    try:
-        proc = subprocess.run(
-            ["ffmpeg", "-y", "-fflags", "+genpts", "-i", "pipe:0",
-             "-vn", "-c:a", "pcm_s16le", "-ar", "16000", "-ac", "1",
-             "-f", "wav", "pipe:1"],
-            input=raw_bytes, capture_output=True, timeout=15,
-        )
-        if proc.returncode == 0 and proc.stdout and len(proc.stdout) > 100:
-            return proc.stdout
-    except Exception:
-        pass
-    return raw_bytes
 
 
 class Pipeline:
@@ -185,14 +166,8 @@ class Pipeline:
         """Fast relay at ~5s. LLM entities+translation arrive ~15s via callback."""
 
         wall_start = time.time()
-        ext = ".wav" if raw_bytes[:4] == b"RIFF" else ".webm"
-        stt_path = tempfile.mktemp(suffix=ext)
-        raw = await asyncio.get_event_loop().run_in_executor(
-            executor, _convert_audio, raw_bytes
-        )
-        # Always save as .wav after conversion
         stt_path = tempfile.mktemp(suffix=".wav")
-        Path(stt_path).write_bytes(raw)
+        Path(stt_path).write_bytes(raw_bytes)
 
         transcript, stt_time, stt_err = await asyncio.get_event_loop().run_in_executor(
             executor, self._stt, stt_path
