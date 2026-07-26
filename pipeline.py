@@ -181,6 +181,8 @@ class Pipeline:
         )
         if stt_err:
             return {"error": stt_err, "transcript": transcript}
+        if not transcript or not transcript.strip():
+            return {"error": "No speech detected — please try again"}
 
         # ── Translate ──
         translated, tr_time, tr_err = await asyncio.get_event_loop().run_in_executor(

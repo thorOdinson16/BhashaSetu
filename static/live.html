@@ -55,6 +55,15 @@
   .loading-overlay { text-align: center; padding: 1rem; color: #888; font-size: 13px; }
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-top-color: #4caf50; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  .log-entry { background: #161616; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
+  .log-entry .who { font-weight: 600; margin-bottom: 2px; }
+  .log-entry .who.kn { color: #7986cb; }
+  .log-entry .who.hi { color: #ce93d8; }
+  .log-entry .src { color: #aaa; }
+  .log-entry .tgt { color: #888; margin-top: 2px; }
+  .receipt-item { font-size: 12px; margin-bottom: 4px; }
+  .receipt-item a { color: #4caf50; }
 </style>
 </head>
 <body>
@@ -101,10 +110,16 @@
   <div class="card">
     <h3 style="font-size:14px; margin-bottom:0.5rem;">📋 Shared Facts</h3>
     <div class="entity-row" id="entityRow"></div>
-    <div class="actions">
-      <button onclick="getReceipt()">📄 Generate Receipt</button>
-    </div>
-    <div id="receiptLink"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:14px; margin-bottom:0.5rem;">💬 Conversation Log</h3>
+    <div id="convLog"><p style="color:#666;font-size:12px;">No turns yet. Start speaking.</p></div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:14px; margin-bottom:0.5rem;">🧾 Receipts</h3>
+    <div id="receiptList"><p style="color:#666;font-size:12px;" class="no-receipts">Receipts appear here automatically.</p></div>
   </div>
 </div>
 
@@ -138,8 +153,10 @@ function connect() {
       case 'entities':
         if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
         if (msg.receipt_id) {
-          document.getElementById('receiptLink').innerHTML =
-            `<a class="receipt-link" href="/receipt/${msg.receipt_id}" target="_blank">📋 Receipt (${msg.receipt_id})</a>`;
+          const list = document.getElementById('receiptList');
+          if (list.querySelector('.no-receipts')) list.innerHTML = '';
+          list.insertAdjacentHTML('afterbegin',
+            `<div class="receipt-item"><a href="/receipt/${msg.receipt_id}" target="_blank">📄 Receipt ${msg.receipt_id}</a></div>`);
         }
         break;
     }
@@ -221,6 +238,9 @@ async function toggleRecord() {
           a.play().catch(() => {});
         }
 
+        // Append to conversation log
+        addLogEntry('you', myLangVal, data.transcript, data.translated_text);
+
         // Broadcast to other tab via WebSocket
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({
@@ -259,6 +279,21 @@ function handleRelay(msg) {
     a.play().catch(() => {});
   }
   if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
+
+  // Append to conversation log — relay comes from the OTHER side
+  const otherLang = LANG_MAP[myLangVal];
+  addLogEntry('them', otherLang, '', msg.translated || '');
+}
+
+function addLogEntry(who, lang, src, tgt) {
+  const log = document.getElementById('convLog');
+  if (log.querySelector('.no-turns')) log.innerHTML = '';
+  const badge = lang === 'kn-IN' ? 'KN' : 'HI';
+  const cls = lang === 'kn-IN' ? 'kn' : 'hi';
+  const srcText = src ? `<div class="src">${who === 'you' ? '🗣️ ' : '👂 '}${src}</div>` : '';
+  const tgtText = tgt ? `<div class="tgt">→ ${tgt}</div>` : '';
+  log.insertAdjacentHTML('afterbegin', 
+    `<div class="log-entry"><div class="who ${cls}">${badge}${who === 'you' ? ' (you)' : ''}</div>${srcText}${tgtText}</div>`);
 }
 
 const sharedEntities = {};
