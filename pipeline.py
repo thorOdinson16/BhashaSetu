@@ -17,7 +17,7 @@ load_dotenv()
 
 executor = ThreadPoolExecutor(max_workers=6)
 
-ENTITY_PROMPT = """Extract entities AND translate to Hindi. JSON only, no markdown.
+ENTITY_PROMPT = """Extract entities AND translate to natural Hindi. JSON only, no markdown.
 
 Transcript: "{transcript}"
 
