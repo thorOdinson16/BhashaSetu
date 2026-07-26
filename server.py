@@ -143,30 +143,9 @@ async def upload_and_relay(
                     pass
         on_entities = _broadcast_entities
 
-        async def _broadcast_enhanced(enhanced_text, transcript, target_lang, speaker):
-            # Generate TTS from enhanced LLM translation
-            result = await asyncio.get_event_loop().run_in_executor(
-                pipeline.executor, pipeline._tts, enhanced_text, target_lang, speaker
-            )
-            enhanced_audio_path, _, _ = result
-            enhanced_audio_b64 = base64.b64encode(
-                Path(enhanced_audio_path).read_bytes()
-            ).decode() if enhanced_audio_path and Path(enhanced_audio_path).exists() else None
-
-            for conn in session.get("connections", []):
-                try:
-                    await conn.send_json({
-                        "type": "enhanced",
-                        "translated": enhanced_text,
-                        "audio_b64": enhanced_audio_b64,
-                    })
-                except Exception:
-                    pass
-        on_enhanced = _broadcast_enhanced
-
     result = await pipeline.process_utterance(
         audio_bytes, source_lang, target_lang, speaker,
-        on_entities=on_entities, on_enhanced=on_enhanced,
+        on_entities=on_entities,
     )
 
     if "error" in result:

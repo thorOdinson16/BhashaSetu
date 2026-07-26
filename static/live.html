@@ -182,26 +182,21 @@ function connect() {
         break;
       case 'entities':
         if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
+        // Know who we are from _target language
+        const forMe = msg.entities && msg.entities._target === myLangVal;
         if (msg.translated) {
-          document.getElementById('myEnhancedTrans').textContent = msg.translated;
+          if (forMe) {
+            document.getElementById('peerEnhancedTrans').textContent = msg.translated;
+          } else {
+            document.getElementById('myEnhancedTrans').textContent = msg.translated;
+          }
         }
         if (msg.enhanced_audio_b64) {
-          const a = document.getElementById('myEnhancedAudio');
+          const a = forMe ? document.getElementById('peerEnhancedAudio') : document.getElementById('myEnhancedAudio');
           a.src = 'data:audio/wav;base64,' + msg.enhanced_audio_b64;
           a.style.display = 'block';
         }
         if (msg.receipt_id) handleReceipt(msg.receipt_id);
-        break;
-      case 'enhanced':
-        if (msg.translated) {
-          document.getElementById('peerEnhancedTrans').textContent = msg.translated;
-        }
-        if (msg.audio_b64) {
-          const a = document.getElementById('peerEnhancedAudio');
-          a.src = 'data:audio/wav;base64,' + msg.audio_b64;
-          a.style.display = 'block';
-          a.play().catch(() => {});
-        }
         break;
     }
   };

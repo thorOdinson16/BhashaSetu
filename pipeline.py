@@ -59,6 +59,7 @@ class Pipeline:
         if not api_key:
             raise RuntimeError("SARVAM_API_KEY not set in environment")
         self.client = SarvamAI(api_subscription_key=api_key)
+        self.executor = executor
 
     def _stt(self, audio_path: str) -> tuple[str, float, str | None]:
         """Transcribe audio via Saaras v3 REST."""
@@ -160,17 +161,15 @@ class Pipeline:
 
     async def process_utterance(
         self, raw_bytes: bytes, source_lang: str, target_lang: str,
-        speaker: str = "shubh", on_entities=None, on_enhanced=None,
+        speaker: str = "shubh", on_entities=None,
     ) -> dict:
-        """Fast path: TTS at ~5s. Enhanced: LLM translation + voice arrive ~15s via callback."""
+        """Fast relay at ~5s. LLM entities+translation arrive ~15s via callback."""
 
         wall_start = time.time()
-
         ext = ".wav" if raw_bytes[:4] == b"RIFF" else ".webm"
         stt_path = tempfile.mktemp(suffix=ext)
         Path(stt_path).write_bytes(raw_bytes)
 
-        # ── STT ──
         transcript, stt_time, stt_err = await asyncio.get_event_loop().run_in_executor(
             executor, self._stt, stt_path
         )
@@ -179,49 +178,39 @@ class Pipeline:
         if not transcript or not transcript.strip():
             return {"error": "No speech detected — please try again"}
 
-        # ── REST Translate (fast) ──
         translated, tr_time, tr_err = await asyncio.get_event_loop().run_in_executor(
             executor, self._translate, transcript, source_lang, target_lang
         )
         if tr_err:
             return {"error": tr_err, "transcript": transcript, "translated_text": translated}
 
-        # ── Fast TTS + 2 LLM background tasks ──
         tts_future = asyncio.get_event_loop().run_in_executor(
             executor, self._tts, translated, target_lang, speaker
         )
         entities_future = asyncio.get_event_loop().run_in_executor(
             executor, self._extract_entities, transcript, target_lang
         )
-        enhanced_future = asyncio.get_event_loop().run_in_executor(
-            executor, self._enhanced_translate, transcript, target_lang
-        )
 
-        # ── Await fast TTS, return immediately ──
         (audio_path, tts_time, tts_err) = await tts_future
-
         audio_b64 = None
         if audio_path and Path(audio_path).exists():
             audio_b64 = base64.b64encode(Path(audio_path).read_bytes()).decode()
-
         wall_total = round(time.time() - wall_start, 2)
 
-        # ── Background: entities + enhanced translation ──
-        async def _wait_both():
-            entities_task = asyncio.ensure_future(entities_future)
-            enhanced_task = asyncio.ensure_future(enhanced_future)
+        async def _wait_llm():
+            llm_result = await entities_future
+            if not on_entities or not llm_result or llm_result.get("error"):
+                return
+            # If combined prompt missed translation, fallback to separate call
+            if not llm_result.get("translation"):
+                fallback = self._enhanced_translate(transcript, target_lang)
+                if fallback:
+                    llm_result["translation"] = fallback
+            llm_result["_llm_latency"] = llm_result.get("_llm_latency", 0)
+            llm_result["_target"] = target_lang
+            await on_entities(llm_result, transcript, translated)
 
-            llm_result = await entities_task
-            if on_entities and llm_result and not llm_result.get("error"):
-                llm_result["_llm_latency"] = llm_result.get("_llm_latency", 0)
-                llm_result["_target"] = target_lang
-                await on_entities(llm_result, transcript, translated)
-
-            enhanced_text = await enhanced_task
-            if on_enhanced and enhanced_text:
-                await on_enhanced(enhanced_text, transcript, target_lang, speaker)
-
-        asyncio.create_task(_wait_both())
+        asyncio.create_task(_wait_llm())
 
         return {
             "transcript": transcript,
@@ -231,24 +220,6 @@ class Pipeline:
             "audio_b64": audio_b64,
             "timing": {"stt": round(stt_time,2), "translate": round(tr_time,2),
                         "tts": round(tts_time,2), "llm": 0, "total": wall_total},
-            "tts_error": tts_err,
-        }
-
-        asyncio.create_task(_wait_llm())
-
-        return {
-            "transcript": transcript,
-            "translated_text": translated,
-            "entities": None,  # Entities arrive later via callback
-            "audio_path": audio_path,
-            "audio_b64": audio_b64,
-            "timing": {
-                "stt": round(stt_time, 2),
-                "translate": round(tr_time, 2),
-                "tts": round(tts_time, 2),
-                "llm": 0,
-                "total": wall_total,
-            },
             "tts_error": tts_err,
         }
 
