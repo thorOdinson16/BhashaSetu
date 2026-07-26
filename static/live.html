@@ -3,313 +3,348 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bhasha Setu — Live</title>
+<title>Bhasha Setu</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
-  .container { max-width: 800px; margin: 0 auto; padding: 1rem; }
-  h1 { font-size: 1.3rem; margin-bottom: 0.25rem; }
-  h1 span { color: #4caf50; }
-  .subtitle { font-size: 12px; color: #888; margin-bottom: 1rem; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #d4d4d4; min-height: 100vh; }
+  .topbar { background: #141414; border-bottom: 1px solid #222; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .topbar h1 { font-size: 18px; font-weight: 700; }
+  .topbar h1 span { color: #4caf50; }
+  .topbar .info { font-size: 11px; color: #666; text-align: right; }
+  .topbar .info .connected { color: #4caf50; }
 
-  .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+  .layout { display: flex; gap: 12px; padding: 12px; max-width: 1200px; margin: 0 auto; height: calc(100vh - 54px); }
+  .col { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .col.side { width: 340px; flex: none; }
 
-  .lang-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
-  .lang-bar select { background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; font-size: 13px; }
-  .lang-bar label { font-size: 12px; color: #888; }
-  .badge { font-size: 11px; padding: 3px 8px; border-radius: 8px; }
-  .badge.kn { background: #1a237e; color: #7986cb; }
+  .card { background: #141414; border: 1px solid #222; border-radius: 10px; padding: 16px; }
+  .card h3 { font-size: 13px; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .lang-picker { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .lang-picker select { background: #1e1e1e; color: #fff; border: 1px solid #333; padding: 6px 10px; border-radius: 6px; font-size: 13px; }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .badge.kn { background: #1a237e; color: #90a4f7; }
   .badge.hi { background: #4a148c; color: #ce93d8; }
 
-  .rec-area { text-align: center; padding: 1.5rem; }
-  .rec-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #4caf50; color: #fff; font-size: 32px; cursor: pointer; transition: all 0.2s; }
-  .rec-btn:hover { background: #43a047; transform: scale(1.05); }
-  .rec-btn.recording { background: #f44336; animation: pulse 1s infinite; }
-  .rec-btn:disabled { background: #333; cursor: not-allowed; animation: none; }
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(244,67,54,0.4); } 50% { box-shadow: 0 0 0 16px rgba(244,67,54,0); } }
-  .rec-label { font-size: 12px; color: #888; margin-top: 0.5rem; }
+  .mic-area { text-align: center; padding: 12px 0; }
+  .mic-btn { width: 72px; height: 72px; border-radius: 50%; border: 2px solid #4caf50; background: transparent; color: #4caf50; font-size: 28px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+  .mic-btn:hover { background: rgba(76,175,80,0.1); }
+  .mic-btn.recording { background: #f44336; border-color: #f44336; color: #fff; animation: pulse 1.2s infinite; }
+  .mic-btn.processing { background: #ff9800; border-color: #ff9800; color: #fff; cursor: wait; }
+  .mic-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(244,67,54,0.5); } 50% { box-shadow: 0 0 0 18px rgba(244,67,54,0); } }
+  .mic-label { font-size: 11px; color: #666; margin-top: 6px; }
+  .error-msg { color: #f44336; font-size: 11px; margin-top: 4px; text-align: center; min-height: 16px; }
 
-  .transcript-box { background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-bottom: 0.5rem; font-size: 13px; line-height: 1.5; max-height: 120px; overflow-y: auto; }
-  .label { font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .transcript { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 1.5; min-height: 60px; max-height: 120px; overflow-y: auto; word-break: break-word; }
+  .transcript .label { font-size: 10px; color: #555; text-transform: uppercase; margin-bottom: 4px; }
+  .transcript .orig { color: #ccc; }
+  .transcript .trans { color: #999; margin-top: 4px; padding-top: 4px; border-top: 1px solid #1a1a1a; }
+  .timing { font-size: 10px; color: #444; margin-top: 4px; }
 
-  .entity-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
-  .entity-chip { background: #222; border: 1px solid #444; border-radius: 4px; padding: 4px 10px; font-size: 12px; }
-  .entity-chip s { color: #888; margin-right: 3px; }
-  .entity-chip .corrected { color: #4caf50; }
+  audio { width: 100%; height: 32px; margin-top: 6px; opacity: 0.8; }
 
-  audio { width: 100%; margin-top: 0.5rem; height: 36px; }
+  .entities { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ent-chip { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 5px 10px; font-size: 12px; }
+  .ent-chip strong { color: #aaa; }
+  .ent-chip s { color: #666; }
+  .ent-chip .fixed { color: #4caf50; }
 
-  .actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-  button { background: #4caf50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 13px; cursor: pointer; }
-  button:hover { background: #43a047; }
-  button.sec { background: #333; }
-  button.sec:hover { background: #444; }
-  button:disabled { background: #333; color: #666; cursor: not-allowed; }
-
-  .receipt-link { color: #4caf50; font-size: 13px; word-break: break-all; margin-top: 0.5rem; display: inline-block; }
-
-  .status-line { font-size: 11px; color: #666; margin-top: 0.25rem; }
-  .connected { color: #4caf50; }
-  .error { color: #f44336; font-size: 12px; margin-top: 0.25rem; }
-
-  .loading-overlay { text-align: center; padding: 1rem; color: #888; font-size: 13px; }
-  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-top-color: #4caf50; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .log-entry { background: #161616; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
-  .log-entry .who { font-weight: 600; margin-bottom: 2px; }
-  .log-entry .who.kn { color: #7986cb; }
+  .conv-log { overflow-y: auto; max-height: calc(100vh - 520px); min-height: 80px; }
+  .log-entry { background: #111; border: 1px solid #1e1e1e; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
+  .log-entry .who { font-weight: 600; font-size: 11px; margin-bottom: 3px; }
+  .log-entry .who.kn { color: #90a4f7; }
   .log-entry .who.hi { color: #ce93d8; }
-  .log-entry .src { color: #aaa; }
-  .log-entry .tgt { color: #888; margin-top: 2px; }
-  .receipt-item { font-size: 12px; margin-bottom: 4px; }
-  .receipt-item a { color: #4caf50; }
+  .log-entry .src { color: #bbb; }
+  .log-entry .tgt { color: #777; margin-top: 2px; font-size: 11px; }
+
+  .receipt-item { font-size: 11px; margin-bottom: 3px; }
+  .receipt-item a { color: #4caf50; text-decoration: none; }
+  .receipt-item a:hover { text-decoration: underline; }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #4caf50; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { color: #444; font-size: 11px; font-style: italic; }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="topbar">
   <h1>Bhasha <span>Setu</span></h1>
-  <p class="subtitle">Session: <span id="sessionId">—</span> · You: <span id="participantId">—</span> · <span id="wsStatus" style="color:#f44336">Connecting...</span></p>
+  <div class="info">
+    <div>Session: <span id="sessId">—</span></div>
+    <div id="wsStatus" style="color:#f44336">Connecting...</div>
+  </div>
+</div>
 
-  <div class="card">
-    <div class="lang-bar">
-      <label>I speak:</label>
-      <select id="myLang" onchange="setLang()">
-        <option value="kn-IN">Kannada</option>
-        <option value="hi-IN">Hindi</option>
-      </select>
-      <span class="badge kn" id="myBadge">KN</span>
-      <span style="color:#888; font-size:12px;">→</span>
-      <span class="badge hi" id="targetBadge">HI</span>
+<div class="layout">
+  <!-- Column A -->
+  <div class="col" id="colA">
+    <div class="card">
+      <div class="lang-picker">
+        <select id="langA" onchange="setLang('A')">
+          <option value="kn-IN">Kannada</option>
+          <option value="hi-IN">Hindi</option>
+        </select>
+        <span class="badge kn" id="badgeA">KN</span>
+        <span style="font-size:11px;color:#555;">→</span>
+        <span class="badge hi" id="badgeB">HI</span>
+        <span style="font-size:10px;color:#444;">(other side)</span>
+      </div>
+      <div class="mic-area">
+        <button class="mic-btn" id="micA" onclick="toggleRecord('A')">🎤</button>
+        <div class="mic-label" id="micLabelA">Tap to speak</div>
+      </div>
+      <div class="error-msg" id="errA"></div>
+
+      <div class="transcript">
+        <div class="label">You said</div>
+        <div class="orig" id="origA">—</div>
+        <div class="trans" id="transA"></div>
+        <div class="timing" id="timeA"></div>
+      </div>
+      <audio id="audioA" controls style="display:none"></audio>
     </div>
 
-    <div class="rec-area">
-      <button class="rec-btn" id="recBtn" onclick="toggleRecord()">🎤</button>
-      <p class="rec-label" id="recLabel">Tap to speak</p>
-      <div id="loadBar" class="loading-overlay" style="display:none"><span class="spinner"></span>Processing...</div>
-      <p id="errorMsg" class="error"></p>
+    <div class="card" style="flex:1; overflow:hidden;">
+      <h3>What they said</h3>
+      <div class="transcript" id="peerA" style="min-height:50px;">
+        <div class="orig" style="color:#888;">Waiting...</div>
+      </div>
+      <audio id="peerAudioA" controls style="display:none"></audio>
+    </div>
+  </div>
+
+  <!-- Column B -->
+  <div class="col" id="colB">
+    <div class="card">
+      <div class="lang-picker">
+        <select id="langB" onchange="setLang('B')">
+          <option value="hi-IN">Hindi</option>
+          <option value="kn-IN">Kannada</option>
+        </select>
+        <span class="badge hi" id="badgeB">HI</span>
+        <span style="font-size:11px;color:#555;">→</span>
+        <span class="badge kn" id="badgeB2">KN</span>
+        <span style="font-size:10px;color:#444;">(other side)</span>
+      </div>
+      <div class="mic-area">
+        <button class="mic-btn" id="micB" onclick="toggleRecord('B')">🎤</button>
+        <div class="mic-label" id="micLabelB">Tap to speak</div>
+      </div>
+      <div class="error-msg" id="errB"></div>
+
+      <div class="transcript">
+        <div class="label">You said</div>
+        <div class="orig" id="origB">—</div>
+        <div class="trans" id="transB"></div>
+        <div class="timing" id="timeB"></div>
+      </div>
+      <audio id="audioB" controls style="display:none"></audio>
     </div>
 
-    <div class="label">You said (transcript)</div>
-    <div class="transcript-box" id="myTranscript">—</div>
-
-    <div class="label">Translation</div>
-    <div class="transcript-box" id="myTranslation">—</div>
-
-    <audio id="myAudio" controls style="display:none"></audio>
-    <div class="label" style="margin-top:0.5rem">Timing</div>
-    <div id="myTiming" style="font-size:11px;color:#888"></div>
+    <div class="card" style="flex:1; overflow:hidden;">
+      <h3>What they said</h3>
+      <div class="transcript" id="peerB" style="min-height:50px;">
+        <div class="orig" style="color:#888;">Waiting...</div>
+      </div>
+      <audio id="peerAudioB" controls style="display:none"></audio>
+    </div>
   </div>
 
-  <div class="card">
-    <h3 style="font-size:14px; margin-bottom:0.5rem;">🤝 From the other side</h3>
-    <div class="transcript-box" id="peerTranscript">Waiting...</div>
-    <audio id="peerAudio" controls style="display:none"></audio>
-  </div>
-
-  <div class="card">
-    <h3 style="font-size:14px; margin-bottom:0.5rem;">📋 Shared Facts</h3>
-    <div class="entity-row" id="entityRow"></div>
-  </div>
-
-  <div class="card">
-    <h3 style="font-size:14px; margin-bottom:0.5rem;">💬 Conversation Log</h3>
-    <div id="convLog"><p style="color:#666;font-size:12px;">No turns yet. Start speaking.</p></div>
-  </div>
-
-  <div class="card">
-    <h3 style="font-size:14px; margin-bottom:0.5rem;">🧾 Receipts</h3>
-    <div id="receiptList"><p style="color:#666;font-size:12px;" class="no-receipts">Receipts appear here automatically.</p></div>
+  <!-- Sidebar -->
+  <div class="col side">
+    <div class="card">
+      <h3>📋 Shared Facts</h3>
+      <div class="entities" id="entityRow"><span class="empty">Speak to add facts</span></div>
+    </div>
+    <div class="card">
+      <h3>💬 Turn Log</h3>
+      <div class="conv-log" id="convLog"><span class="empty">No turns yet</span></div>
+    </div>
+    <div class="card">
+      <h3>🧾 Receipts</h3>
+      <div id="receiptList"><span class="empty">Auto-generated</span></div>
+    </div>
   </div>
 </div>
 
 <script>
 const LANG_MAP = { 'kn-IN': 'hi-IN', 'hi-IN': 'kn-IN' };
-const sessionId = new URLSearchParams(window.location.search).get('s') || 'default';
-document.getElementById('sessionId').textContent = sessionId;
+const SESSION = Math.random().toString(36).slice(2, 8);
+document.getElementById('sessId').textContent = SESSION;
+// Update URL without reload
+history.replaceState(null, '', '/?s=' + SESSION);
 
-let ws, participantId, mediaRecorder, audioChunks = [], recording = false;
-let myLangVal = document.getElementById('myLang').value;
+let ws, participantId;
+let recorders = { A: null, B: null };
+let recording = { A: false, B: false };
+let chunks = { A: [], B: [] };
 
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}/ws/${sessionId}`);
-
+  ws = new WebSocket(`${proto}//${location.host}/ws/${SESSION}`);
   ws.onopen = () => {
-    document.getElementById('wsStatus').textContent = 'Connected';
-    document.getElementById('wsStatus').className = 'connected';
+    document.getElementById('wsStatus').innerHTML = '<span class="connected">Connected</span>';
   };
-
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
+    const otherCol = msg.from || (msg.col === 'A' ? 'B' : 'A');
     switch(msg.type) {
       case 'joined':
         participantId = msg.participant_id;
-        document.getElementById('participantId').textContent = participantId;
         break;
       case 'relay':
-        handleRelay(msg);
+        handleRelay(otherCol, msg);
         break;
       case 'entities':
         if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
-        // Update with better LLM translation
-        if (msg.translated) {
-          document.getElementById('myTranslation').textContent = msg.translated;
+        if (msg.translated && msg.col) {
+          document.getElementById('trans' + msg.col).textContent = '→ ' + msg.translated;
         }
-        if (msg.receipt_id) {
-          const list = document.getElementById('receiptList');
-          if (list.querySelector('.no-receipts')) list.innerHTML = '';
-          list.insertAdjacentHTML('afterbegin',
-            `<div class="receipt-item"><a href="/receipt/${msg.receipt_id}" target="_blank">📄 Receipt ${msg.receipt_id}</a></div>`);
-        }
+        if (msg.receipt_id) addReceipt(msg.receipt_id);
+        break;
+      case 'error':
+        if (msg.col) document.getElementById('err' + msg.col).textContent = msg.message;
         break;
     }
   };
-
   ws.onclose = () => {
-    document.getElementById('wsStatus').textContent = 'Disconnected';
-    document.getElementById('wsStatus').className = '';
+    document.getElementById('wsStatus').innerHTML = '<span style="color:#f44336">Disconnected</span>';
     setTimeout(connect, 2000);
   };
 }
 
-function setLang() {
-  myLangVal = document.getElementById('myLang').value;
-  const lang = myLangVal;
-  document.getElementById('myBadge').textContent = lang === 'kn-IN' ? 'KN' : 'HI';
-  document.getElementById('myBadge').className = `badge ${lang === 'kn-IN' ? 'kn' : 'hi'}`;
-  const tl = LANG_MAP[lang];
-  document.getElementById('targetBadge').textContent = tl === 'kn-IN' ? 'KN' : 'HI';
-  document.getElementById('targetBadge').className = `badge ${tl === 'kn-IN' ? 'kn' : 'hi'}`;
+function setLang(col) {
+  const lang = document.getElementById('lang' + col).value;
+  const other = col === 'A' ? 'B' : 'A';
+  const opp = LANG_MAP[lang];
+  document.getElementById('badge' + col).textContent = lang === 'kn-IN' ? 'KN' : 'HI';
+  document.getElementById('badge' + col).className = 'badge ' + (lang === 'kn-IN' ? 'kn' : 'hi');
 }
 
-async function toggleRecord() {
-  if (recording) {
-    mediaRecorder.stop();
-    recording = false;
-    document.getElementById('recBtn').classList.remove('recording');
-    document.getElementById('recLabel').textContent = 'Processing...';
-    document.getElementById('recBtn').disabled = true;
-    document.getElementById('loadBar').style.display = 'block';
+async function toggleRecord(col) {
+  const other = col === 'A' ? 'B' : 'A';
+
+  if (recording[col]) {
+    recorders[col].stop();
+    recording[col] = false;
+    const btn = document.getElementById('mic' + col);
+    btn.classList.remove('recording');
+    btn.classList.add('processing');
+    btn.disabled = true;
+    document.getElementById('micLabel' + col).textContent = 'Processing...';
+    document.getElementById('err' + col).textContent = '';
     return;
   }
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-    audioChunks = [];
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+    recorders[col] = new MediaRecorder(stream, { mimeType: mime });
+    chunks[col] = [];
 
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunks.push(e.data);
-    };
-
-    mediaRecorder.onstop = async () => {
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    recorders[col].ondataavailable = (e) => { if (e.data.size > 0) chunks[col].push(e.data); };
+    recorders[col].onstop = async () => {
+      const blob = new Blob(chunks[col], { type: 'audio/webm' });
       stream.getTracks().forEach(t => t.stop());
 
-      // Upload via REST (proven reliable path)
       const form = new FormData();
       form.append('file', blob, 'recording.webm');
-      form.append('source_lang', myLangVal);
-      form.append('target_lang', LANG_MAP[myLangVal]);
+      form.append('source_lang', document.getElementById('lang' + col).value);
+      form.append('target_lang', LANG_MAP[document.getElementById('lang' + col).value]);
       form.append('speaker', 'shubh');
-      form.append('session_id', sessionId);
+      form.append('session_id', SESSION);
 
+      const btn = document.getElementById('mic' + col);
       try {
         const resp = await fetch('/upload', { method: 'POST', body: form });
         const data = await resp.json();
-
-        document.getElementById('loadBar').style.display = 'none';
-        document.getElementById('recBtn').disabled = false;
-        document.getElementById('recLabel').textContent = 'Tap to speak';
-        document.getElementById('errorMsg').textContent = '';
+        btn.classList.remove('processing');
+        btn.disabled = false;
+        document.getElementById('micLabel' + col).textContent = 'Tap to speak';
+        document.getElementById('err' + col).textContent = '';
 
         if (data.error) {
-          document.getElementById('errorMsg').textContent = 'Error: ' + data.error;
+          document.getElementById('err' + col).textContent = data.error;
           return;
         }
 
-        // Show result immediately (audio at ~5s, entities arrive later via WS)
-        document.getElementById('myTranscript').textContent = data.transcript || '';
-        document.getElementById('myTranslation').textContent = data.translated_text || '';
+        document.getElementById('orig' + col).textContent = data.transcript || '';
+        document.getElementById('trans' + col).textContent = '→ ' + (data.translated_text || '');
         const t = data.timing || {};
-        document.getElementById('myTiming').textContent = `STT ${t.stt}s · TR ${t.translate}s · TTS ${t.tts}s · Total ${t.total}s`;
+        document.getElementById('time' + col).textContent = `STT ${t.stt}s · TR ${t.translate}s · TTS ${t.tts}s · ${t.total}s total`;
 
         if (data.audio_b64) {
-          const a = document.getElementById('myAudio');
+          const a = document.getElementById('audio' + col);
           a.src = 'data:audio/wav;base64,' + data.audio_b64;
           a.style.display = 'block';
           a.play().catch(() => {});
         }
 
-        // Append to conversation log
-        addLogEntry('you', myLangVal, data.transcript, data.translated_text);
+        addLog(col, document.getElementById('lang' + col).value, data.transcript, data.translated_text);
 
-        // Broadcast to other tab via WebSocket
+        // Relay to other side via WebSocket
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({
             type: 'relay_broadcast',
             transcript: data.transcript,
             translated: data.translated_text,
             audio_b64: data.audio_b64,
+            from: col,
           }));
         }
-
       } catch (err) {
-        document.getElementById('loadBar').style.display = 'none';
-        document.getElementById('recBtn').disabled = false;
-        document.getElementById('recLabel').textContent = 'Tap to speak';
-        document.getElementById('errorMsg').textContent = 'Upload failed: ' + err.message;
+        btn.classList.remove('processing');
+        btn.disabled = false;
+        document.getElementById('micLabel' + col).textContent = 'Tap to speak';
+        document.getElementById('err' + col).textContent = 'Failed: ' + err.message;
       }
     };
 
-    mediaRecorder.start();
-    recording = true;
-    document.getElementById('recBtn').classList.add('recording');
-    document.getElementById('recLabel').textContent = 'Recording...';
-    document.getElementById('errorMsg').textContent = '';
+    recorders[col].start();
+    recording[col] = true;
+    document.getElementById('mic' + col).classList.add('recording');
+    document.getElementById('micLabel' + col).textContent = 'Recording...';
+    document.getElementById('err' + col).textContent = '';
 
   } catch (err) {
-    document.getElementById('errorMsg').textContent = 'Mic error: ' + err.message;
+    document.getElementById('err' + col).textContent = 'Mic: ' + err.message;
   }
 }
 
-function handleRelay(msg) {
-  document.getElementById('peerTranscript').textContent = msg.translated || '';
+function handleRelay(col, msg) {
+  const peer = document.getElementById('peer' + col);
+  peer.querySelector('.orig').textContent = msg.translated || '';
   if (msg.audio_b64) {
-    const a = document.getElementById('peerAudio');
+    const a = document.getElementById('peerAudio' + col);
     a.src = 'data:audio/wav;base64,' + msg.audio_b64;
     a.style.display = 'block';
     a.play().catch(() => {});
   }
-  if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
-
-  // Append to conversation log — relay comes from the OTHER side
-  const otherLang = LANG_MAP[myLangVal];
-  addLogEntry('them', otherLang, '', msg.translated || '');
+  const otherLang = document.getElementById('lang' + (col === 'A' ? 'B' : 'A')).value;
+  addLog(col === 'A' ? 'B' : 'A', otherLang, '', msg.translated || '');
 }
 
-function addLogEntry(who, lang, src, tgt) {
+function addLog(col, lang, src, tgt) {
   const log = document.getElementById('convLog');
-  if (log.querySelector('.no-turns')) log.innerHTML = '';
+  if (log.querySelector('.empty')) log.innerHTML = '';
   const badge = lang === 'kn-IN' ? 'KN' : 'HI';
   const cls = lang === 'kn-IN' ? 'kn' : 'hi';
-  const srcText = src ? `<div class="src">${who === 'you' ? '🗣️ ' : '👂 '}${src}</div>` : '';
+  const srcText = src ? `<div class="src">${src}</div>` : '';
   const tgtText = tgt ? `<div class="tgt">→ ${tgt}</div>` : '';
   log.insertAdjacentHTML('afterbegin', 
-    `<div class="log-entry"><div class="who ${cls}">${badge}${who === 'you' ? ' (you)' : ''}</div>${srcText}${tgtText}</div>`);
+    `<div class="log-entry"><div class="who ${cls}">${badge}${col === 'A' || col === 'B' ? '' : ''}</div>${srcText}${tgtText}</div>`);
 }
 
-const sharedEntities = {};
-
+const sharedEnts = {};
 function updateEntities(entities) {
   if (!entities || entities.error) return;
   const fields = ['date','time','name','phone','address','amount'];
   for (const f of fields) {
-    if (entities[f]) sharedEntities[f] = entities[f];
+    if (entities[f] && String(entities[f]).trim()) sharedEnts[f] = String(entities[f]).trim();
   }
   if (entities.correction_detected) {
-    sharedEntities._correction = { old: entities.correction_old_value, new: entities.correction_new_value };
+    sharedEnts._corr = { old: entities.correction_old_value, new: entities.correction_new_value };
   }
   renderEntities();
 }
@@ -317,40 +352,25 @@ function updateEntities(entities) {
 function renderEntities() {
   const row = document.getElementById('entityRow');
   let html = '';
-  for (const [key, val] of Object.entries(sharedEntities)) {
-    if (key === '_correction') continue;
-    let display = val;
-    if (sharedEntities._correction && (key === 'date' || key === 'amount')) {
-      const c = sharedEntities._correction;
-      if (String(c.new) === String(val)) {
-        display = `<s>${c.old}</s> <span class="corrected">${c.new}</span>`;
+  for (const [k, v] of Object.entries(sharedEnts)) {
+    if (k === '_corr') continue;
+    let display = v;
+    if (sharedEnts._corr && (k === 'date' || k === 'amount')) {
+      const c = sharedEnts._corr;
+      if (c.new && String(c.new) === String(v)) {
+        display = `<s>${c.old}</s> <span class="fixed">${c.new}</span>`;
       }
     }
-    html += `<span class="entity-chip"><strong>${key}:</strong> ${display}</span>`;
+    html += `<span class="ent-chip"><strong>${k}:</strong> ${display}</span>`;
   }
-  row.innerHTML = html || '<span style="color:#666;font-size:12px;">No facts yet</span>';
+  row.innerHTML = html || '<span class="empty">Speak to add facts</span>';
 }
 
-function getReceipt() {
-  // Use REST for receipt generation
-  const allEnts = [];
-  for (const [k, v] of Object.entries(sharedEntities)) {
-    if (k === '_correction') continue;
-    allEnts.push({ type: k, value: v });
-  }
-  fetch('/api/receipt', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(allEnts),
-  })
-    .then(r => r.json())
-    .then(data => {
-      document.getElementById('receiptLink').innerHTML =
-        `<a class="receipt-link" href="/receipt/${data.receipt_id}" target="_blank">📋 Open Receipt (${data.receipt_id})</a>`;
-    })
-    .catch(err => {
-      document.getElementById('errorMsg').textContent = 'Receipt failed: ' + err.message;
-    });
+function addReceipt(rid) {
+  const list = document.getElementById('receiptList');
+  if (list.querySelector('.empty')) list.innerHTML = '';
+  list.insertAdjacentHTML('afterbegin', 
+    `<div class="receipt-item"><a href="/receipt/${rid}" target="_blank">📄 Receipt ${rid}</a></div>`);
 }
 
 connect();

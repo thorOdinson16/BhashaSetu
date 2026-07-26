@@ -35,12 +35,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-
-
-@app.get("/live", response_class=HTMLResponse)
-async def live():
     return (STATIC_DIR / "live.html").read_text(encoding="utf-8")
+
+
+@app.get("/upload-page", response_class=HTMLResponse)
+async def upload_page():
+    return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
 
 
 @app.get("/receipt/{receipt_id}", response_class=HTMLResponse)
@@ -178,12 +178,12 @@ async def websocket_session(ws: WebSocket, session_id: str):
                 for conn in session["connections"]:
                     if conn != ws:
                         try:
-                            await conn.send_json({
+                             await conn.send_json({
                                 "type": "relay",
                                 "transcript": msg.get("transcript", ""),
                                 "translated": msg.get("translated", ""),
                                 "audio_b64": msg.get("audio_b64"),
-                                "entities": msg.get("entities", {}),
+                                "from": msg.get("from", ""),
                             })
                         except Exception:
                             pass
