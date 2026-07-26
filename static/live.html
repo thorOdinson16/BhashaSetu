@@ -111,9 +111,15 @@
   </div>
 
   <div class="card">
-    <h3 style="font-size:14px; margin-bottom:0.5rem;">🤝 From the other side</h3>
+    <h3 style="font-size:14px; margin-bottom:0.5rem;">📩 Received · Fast</h3>
     <div class="transcript-box" id="peerTranscript">Waiting...</div>
     <audio id="peerAudio" controls style="display:none"></audio>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:14px; margin-bottom:0.5rem; color:#4caf50;">📩 Received · Enhanced <span style="font-size:10px;color:#555;font-weight:normal;">(LLM, ~15s)</span></h3>
+    <div class="transcript-box" id="peerEnhancedTrans" style="border-color:#2e7d32;">—</div>
+    <audio id="peerEnhancedAudio" controls style="display:none"></audio>
   </div>
 
   <div class="card">
@@ -183,12 +189,13 @@ function connect() {
         break;
       case 'enhanced':
         if (msg.translated) {
-          document.getElementById('myEnhancedTrans').textContent = msg.translated;
+          document.getElementById('peerEnhancedTrans').textContent = msg.translated;
         }
         if (msg.audio_b64) {
-          const a = document.getElementById('myEnhancedAudio');
+          const a = document.getElementById('peerEnhancedAudio');
           a.src = 'data:audio/wav;base64,' + msg.audio_b64;
           a.style.display = 'block';
+          a.play().catch(() => {});
         }
         break;
     }
