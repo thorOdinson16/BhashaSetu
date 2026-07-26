@@ -141,6 +141,6 @@ BhashaSetu/
 - **Sarvam-105B latency:** Enhanced path takes 10–20s. Runs in background, never blocks relay.
 - **REST only:** STT and TTS use REST endpoints. WebSocket streaming STT/TTS would reduce latency further.
 - **Entity extraction accuracy:** Varies on complex code-mixed utterances. Improved by enhanced translation fallback.
-- **Two-party only:** Built for two speakers. Multi-party (3+) requires turn arbitration — see Card #85.
+- **Two-party only:** Built for two speakers.
 - **Browser-only:** No telephony integration. Browser microphone capture via AudioContext.
 - **Hindi & Kannada only:** Depth on one language pair beats breadth across many.
