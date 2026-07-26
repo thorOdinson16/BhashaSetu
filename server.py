@@ -166,13 +166,13 @@ async def websocket_session(ws: WebSocket, session_id: str):
 
     await ws.send_json({"type": "joined", "session_id": session_id, "participant_id": participant["id"]})
 
-    # Notify other connections
+    # Notify all connections (including the new one) about the peer count
+    count = len(session["connections"])
     for conn in session["connections"]:
-        if conn != ws:
-            try:
-                await conn.send_json({"type": "peer_joined", "count": len(session["connections"])})
-            except Exception:
-                pass
+        try:
+            await conn.send_json({"type": "peer_joined", "count": count - 1})
+        except Exception:
+            pass
 
     try:
         while True:

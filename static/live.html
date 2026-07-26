@@ -74,7 +74,7 @@
     <h1 style="margin:0;">Bhasha <span>Setu</span></h1>
     <a href="/upload" class="nav-btn">📁 Upload Test</a>
   </div>
-  <p class="subtitle">Session: <span id="sessionId">—</span> · You: <span id="participantId">—</span> · <span id="wsStatus" style="color:#f44336">Connecting...</span><br><span style="font-size:10px;color:#555;">Share this URL with the other speaker</span></p>
+  <p class="subtitle">Session: <span id="sessionId">—</span> · <span style="color:#4caf50;display:none;" id="peerCount">1 other</span> · <span id="wsStatus" style="color:#f44336">Connecting...</span> &nbsp; <a href="#" onclick="copyLink();return false;" class="nav-btn">📋 Copy Link</a></p>
 
   <div class="card">
     <div class="lang-bar">
@@ -139,6 +139,14 @@ if (!window.location.search.includes('s=')) {
 let ws, participantId, mediaRecorder, audioChunks = [], recording = false;
 let myLangVal = document.getElementById('myLang').value;
 
+function copyLink() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = document.querySelector('.nav-btn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy Link'; }, 1500);
+  });
+}
+
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws/${sessionId}`);
@@ -154,6 +162,10 @@ function connect() {
       case 'joined':
         participantId = msg.participant_id;
         document.getElementById('participantId').textContent = participantId;
+        break;
+      case 'peer_joined':
+        document.getElementById('peerCount').textContent = msg.count || '1';
+        document.getElementById('peerCount').style.display = 'inline';
         break;
       case 'relay':
         handleRelay(msg);
