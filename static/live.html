@@ -98,10 +98,14 @@
     <div class="label">You said (transcript)</div>
     <div class="transcript-box" id="myTranscript">—</div>
 
-    <div class="label">Translation</div>
+    <div class="label" style="margin-top:0.5rem">Translation · Fast</div>
     <div class="transcript-box" id="myTranslation">—</div>
-
     <audio id="myAudio" controls style="display:none"></audio>
+
+    <div class="label" style="margin-top:0.5rem; color:#4caf50;">Translation · Enhanced <span style="font-size:10px;color:#555;font-weight:normal;">(LLM, arrives in ~15s)</span></div>
+    <div class="transcript-box" id="myEnhancedTrans" style="border-color:#2e7d32;">—</div>
+    <audio id="myEnhancedAudio" controls style="display:none"></audio>
+
     <div class="label" style="margin-top:0.5rem">Timing</div>
     <div id="myTiming" style="font-size:11px;color:#888"></div>
   </div>
@@ -173,16 +177,16 @@ function connect() {
       case 'entities':
         if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
         if (msg.translated) {
-          document.getElementById('myTranslation').textContent = '→ ' + msg.translated;
+          document.getElementById('myEnhancedTrans').textContent = msg.translated;
         }
         if (msg.receipt_id) handleReceipt(msg.receipt_id);
         break;
       case 'enhanced':
         if (msg.translated) {
-          document.getElementById('myTranslation').textContent = '→ ' + msg.translated;
+          document.getElementById('myEnhancedTrans').textContent = msg.translated;
         }
         if (msg.audio_b64) {
-          const a = document.getElementById('myAudio');
+          const a = document.getElementById('myEnhancedAudio');
           a.src = 'data:audio/wav;base64,' + msg.audio_b64;
           a.style.display = 'block';
         }
