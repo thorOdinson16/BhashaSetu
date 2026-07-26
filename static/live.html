@@ -185,6 +185,11 @@ function connect() {
         if (msg.translated) {
           document.getElementById('myEnhancedTrans').textContent = msg.translated;
         }
+        if (msg.enhanced_audio_b64) {
+          const a = document.getElementById('myEnhancedAudio');
+          a.src = 'data:audio/wav;base64,' + msg.enhanced_audio_b64;
+          a.style.display = 'block';
+        }
         if (msg.receipt_id) handleReceipt(msg.receipt_id);
         break;
       case 'enhanced':

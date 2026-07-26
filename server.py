@@ -105,7 +105,7 @@ async def upload_and_relay(
             ent_copy["_translated"] = translated
             session["entities"].append(ent_copy)
 
-            # Generate receipt ID for later retrieval
+            # Generate receipt ID
             rid = str(uuid.uuid4())[:8]
             receipts[rid] = {
                 "receipt_id": rid,
@@ -115,7 +115,20 @@ async def upload_and_relay(
                 "generated_at": time.strftime("%H:%M:%S"),
             }
 
-            # Broadcast to all connections with better translation
+            # Generate TTS from LLM translation for sender
+            llm_text = entities.get("translation", "")
+            enhanced_audio_b64 = None
+            if llm_text:
+                target_lang = entities.get("_target", "hi-IN")
+                result = await asyncio.get_event_loop().run_in_executor(
+                    pipeline.executor, pipeline._tts, llm_text, target_lang, "shubh"
+                )
+                audio_path, _, _ = result
+                if audio_path and Path(audio_path).exists():
+                    enhanced_audio_b64 = base64.b64encode(
+                        Path(audio_path).read_bytes()
+                    ).decode()
+
             for conn in session.get("connections", []):
                 try:
                     await conn.send_json({
@@ -123,6 +136,7 @@ async def upload_and_relay(
                         "entities": entities,
                         "transcript": transcript,
                         "translated": entities.get("translation", translated),
+                        "enhanced_audio_b64": enhanced_audio_b64,
                         "receipt_id": rid,
                     })
                 except Exception:

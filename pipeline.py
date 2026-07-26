@@ -214,6 +214,7 @@ class Pipeline:
             llm_result = await entities_task
             if on_entities and llm_result and not llm_result.get("error"):
                 llm_result["_llm_latency"] = llm_result.get("_llm_latency", 0)
+                llm_result["_target"] = target_lang
                 await on_entities(llm_result, transcript, translated)
 
             enhanced_text = await enhanced_task
