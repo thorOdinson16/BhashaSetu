@@ -136,19 +136,6 @@ BhashaSetu/
 
 ---
 
-## Rubric Alignment
-
-| Parameter | Target | Key Evidence |
-|---|---|---|
-| JTBD Completion | **L4** | Product completes the job across 4 scenarios, produces verified bilingual receipt |
-| Memory & Context | **L4** | Shared state survives conversation, corrections propagate, shareable receipt URL |
-| Creativity | **L4** | Shared canonical state + correction propagation + async callback architecture + entity confirmation loop |
-| Impact | **L3** | Named users (delivery agent-customer, landlord-tenant), avoidable-loss metric |
-| Delight | **L4** | Correction handling with visible strike-through, enhanced translation, honest error messages |
-| Voice Experience | **L3** | Code-mixed KN-EN-HI transcription, entity preservation, measured relay latency |
-
----
-
 ## Known Limitations
 
 - **Sarvam-105B latency:** Enhanced path takes 10–20s. Runs in background, never blocks relay.
