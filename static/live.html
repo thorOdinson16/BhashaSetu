@@ -172,15 +172,19 @@ function connect() {
         break;
       case 'entities':
         if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
-        // Update with better LLM translation
         if (msg.translated) {
-          document.getElementById('myTranslation').textContent = msg.translated;
+          document.getElementById('myTranslation').textContent = '→ ' + msg.translated;
         }
-        if (msg.receipt_id) {
-          const list = document.getElementById('receiptList');
-          if (list.querySelector('.no-receipts')) list.innerHTML = '';
-          list.insertAdjacentHTML('afterbegin',
-            `<div class="receipt-item"><a href="/receipt/${msg.receipt_id}" target="_blank">📄 Receipt ${msg.receipt_id}</a></div>`);
+        if (msg.receipt_id) handleReceipt(msg.receipt_id);
+        break;
+      case 'enhanced':
+        if (msg.translated) {
+          document.getElementById('myTranslation').textContent = '→ ' + msg.translated;
+        }
+        if (msg.audio_b64) {
+          const a = document.getElementById('myAudio');
+          a.src = 'data:audio/wav;base64,' + msg.audio_b64;
+          a.style.display = 'block';
         }
         break;
     }
@@ -371,6 +375,13 @@ function getReceipt() {
     .catch(err => {
       document.getElementById('errorMsg').textContent = 'Receipt failed: ' + err.message;
     });
+}
+
+function handleReceipt(rid) {
+  const list = document.getElementById('receiptList');
+  if (list.querySelector('.no-receipts')) list.innerHTML = '';
+  list.insertAdjacentHTML('afterbegin',
+    `<div class="receipt-item"><a href="/receipt/${rid}" target="_blank">📄 Receipt ${rid}</a></div>`);
 }
 
 connect();
