@@ -91,6 +91,24 @@ async def upload_and_relay(
     if session_id and session_id in sessions:
         session = sessions[session_id]
         async def _broadcast_entities(entities, transcript, translated):
+            # Store in session state
+            ent_copy = dict(entities)
+            ent_copy["_speaker"] = "participant"
+            ent_copy["_transcript"] = transcript
+            ent_copy["_translated"] = translated
+            session["entities"].append(ent_copy)
+
+            # Generate receipt ID for later retrieval
+            rid = str(uuid.uuid4())[:8]
+            receipts[rid] = {
+                "receipt_id": rid,
+                "entities": [ent_copy],
+                "source_transcript": transcript,
+                "translated_text": translated,
+                "generated_at": time.strftime("%H:%M:%S"),
+            }
+
+            # Broadcast to all connections
             for conn in session.get("connections", []):
                 try:
                     await conn.send_json({
@@ -98,6 +116,7 @@ async def upload_and_relay(
                         "entities": entities,
                         "transcript": transcript,
                         "translated": translated,
+                        "receipt_id": rid,
                     })
                 except Exception:
                     pass
@@ -249,24 +268,18 @@ def _audio_to_b64(audio_path: str | None) -> str | None:
 def render_receipt_page(receipt_id: str, receipt: dict) -> str:
     entities = receipt.get("entities", [])
     rows = ""
+    fields = ["date", "time", "name", "phone", "address", "amount"]
+
     for e in entities:
-        old = e.get("correction_old_value")
-        new = e.get("correction_new_value")
-        has_correction = e.get("correction_detected") and old and new
-        if has_correction:
-            value_cell = f"<s>{old}</s> → <strong>{new}</strong>"
-        else:
-            value_cell = e.get("value", "") or e.get("kn", "") or "—"
+        has_correction = e.get("correction_detected") and e.get("correction_old_value") and e.get("correction_new_value")
 
-        kn_val = e.get("kn", "") or "—"
-        hi_val = e.get("hi", "") or "—"
-
-        rows += f"""<tr>
-            <td>{e.get('type', '')}</td>
-            <td>{value_cell}</td>
-            <td>{kn_val}</td>
-            <td>{hi_val}</td>
-        </tr>"""
+        for field in fields:
+            val = e.get(field) or "—"
+            old = e.get("correction_old_value")
+            new = e.get("correction_new_value")
+            if has_correction and str(new) == str(e.get(field)):
+                val = f"<s>{old}</s> → <strong>{new}</strong>"
+            rows += f"<tr><td>{field}</td><td>{val}</td></tr>"
 
     source = receipt.get("source_transcript", "")
     translated = receipt.get("translated_text", "")
@@ -284,19 +297,23 @@ def render_receipt_page(receipt_id: str, receipt: dict) -> str:
   .badge {{ background: #1b5e20; color: #4caf50; padding: 4px 14px; border-radius: 12px; font-size: 13px; }}
   h2 {{ color: #fff; margin: 0; }}
   h2 span {{ color: #4caf50; }}
-  .subtitle {{ color: #888; font-size: 13px; margin-bottom: 1.5rem; }}
+  .subtitle {{ color: #888; font-size: 13px; margin-bottom: 1rem; }}
   .box {{ background: #111; border: 1px solid #333; border-radius: 6px; padding: 12px; margin-bottom: 1rem; font-size: 13px; max-height: 80px; overflow-y: auto; }}
+  .conv {{ display: flex; gap: 1rem; }}
+  .conv .box {{ flex: 1; }}
 </style></head>
 <body>
   <div class="header">
     <h2>Bhasha <span>Setu</span> Receipt</h2>
     <span class="badge">Confirmed</span>
   </div>
-  <p class="subtitle">ID: {receipt_id} · {receipt.get('generated_at', '')}</p>
-  <div class="box"><strong>Source:</strong> {source}</div>
-  <div class="box"><strong>Translation:</strong> {translated}</div>
+  <p class="subtitle">ID: {receipt_id}</p>
+  <div class="conv">
+    <div class="box"><strong>Kannada:</strong><br>{source}</div>
+    <div class="box"><strong>Hindi:</strong><br>{translated}</div>
+  </div>
   <table>
-    <tr><th>Entity</th><th>Value</th><th>Kannada</th><th>Hindi</th></tr>
+    <tr><th>Entity</th><th>Value</th></tr>
     {rows}
   </table>
   <p style="margin-top: 1.5rem; color: #666; font-size: 13px;">

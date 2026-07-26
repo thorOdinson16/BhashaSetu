@@ -137,6 +137,10 @@ function connect() {
         break;
       case 'entities':
         if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
+        if (msg.receipt_id) {
+          document.getElementById('receiptLink').innerHTML =
+            `<a class="receipt-link" href="/receipt/${msg.receipt_id}" target="_blank">📋 Receipt (${msg.receipt_id})</a>`;
+        }
         break;
     }
   };
