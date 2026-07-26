@@ -195,6 +195,7 @@ function connect() {
           const a = forMe ? document.getElementById('peerEnhancedAudio') : document.getElementById('myEnhancedAudio');
           a.src = 'data:audio/wav;base64,' + msg.enhanced_audio_b64;
           a.style.display = 'block';
+          a.play().catch(() => {});
         }
         if (msg.receipt_id) handleReceipt(msg.receipt_id);
         break;
