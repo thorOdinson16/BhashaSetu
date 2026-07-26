@@ -135,6 +135,9 @@ function connect() {
       case 'relay':
         handleRelay(msg);
         break;
+      case 'entities':
+        if (msg.entities && !msg.entities.error) updateEntities(msg.entities);
+        break;
     }
   };
 
@@ -185,6 +188,7 @@ async function toggleRecord() {
       form.append('source_lang', myLangVal);
       form.append('target_lang', LANG_MAP[myLangVal]);
       form.append('speaker', 'shubh');
+      form.append('session_id', sessionId);
 
       try {
         const resp = await fetch('/upload', { method: 'POST', body: form });
@@ -200,11 +204,11 @@ async function toggleRecord() {
           return;
         }
 
-        // Show my result
+        // Show result immediately (audio at ~5s, entities arrive later via WS)
         document.getElementById('myTranscript').textContent = data.transcript || '';
         document.getElementById('myTranslation').textContent = data.translated_text || '';
         const t = data.timing || {};
-        document.getElementById('myTiming').textContent = `STT ${t.stt}s · TR ${t.translate}s · TTS ${t.tts}s · LLM ${t.llm}s · Total ${t.total}s`;
+        document.getElementById('myTiming').textContent = `STT ${t.stt}s · TR ${t.translate}s · TTS ${t.tts}s · Total ${t.total}s`;
 
         if (data.audio_b64) {
           const a = document.getElementById('myAudio');
@@ -213,8 +217,6 @@ async function toggleRecord() {
           a.play().catch(() => {});
         }
 
-        if (data.entities && !data.entities.error) updateEntities(data.entities);
-
         // Broadcast to other tab via WebSocket
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({
@@ -222,7 +224,6 @@ async function toggleRecord() {
             transcript: data.transcript,
             translated: data.translated_text,
             audio_b64: data.audio_b64,
-            entities: data.entities,
           }));
         }
 

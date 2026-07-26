@@ -5,7 +5,6 @@ import json
 import time
 import asyncio
 import tempfile
-import subprocess
 import base64
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -73,27 +72,6 @@ JSON format:
     }}
   ]
 }}"""
-
-
-def _convert_audio(raw_bytes: bytes) -> bytes:
-    """Convert non-WAV audio (WebM, OGG, MP3) to 16kHz mono WAV via ffmpeg.
-    Strips metadata and caps at 10s to avoid duration issues."""
-    if raw_bytes[:4] == b"RIFF":
-        return raw_bytes
-    try:
-        proc = subprocess.run(
-            ["ffmpeg", "-y", "-i", "pipe:0", "-map_metadata", "-1",
-             "-c:a", "pcm_s16le", "-ar", "16000", "-ac", "1",
-             "-t", "10", "-f", "wav", "pipe:1"],
-            input=raw_bytes,
-            capture_output=True,
-            timeout=15,
-        )
-        if proc.returncode == 0 and proc.stdout and len(proc.stdout) > 100:
-            return proc.stdout
-    except Exception:
-        pass
-    return raw_bytes
 
 
 class Pipeline:
@@ -185,18 +163,17 @@ class Pipeline:
             return []
 
     async def process_utterance(
-        self, raw_bytes: bytes, source_lang: str, target_lang: str, speaker: str = "shubh"
+        self, raw_bytes: bytes, source_lang: str, target_lang: str,
+        speaker: str = "shubh", on_entities=None,
     ) -> dict:
-        """Full pipeline: STT → Translate → TTS + LLM (parallel)."""
+        """Full pipeline: STT → Translate → TTS (return immediately) + LLM (background callback)."""
 
         wall_start = time.time()
 
-        # Always convert non-WAV audio via ffmpeg (browser WebM → 16kHz WAV)
-        wav_bytes = await asyncio.get_event_loop().run_in_executor(
-            executor, _convert_audio, raw_bytes
-        )
-        stt_path = tempfile.mktemp(suffix=".wav")
-        Path(stt_path).write_bytes(wav_bytes)
+        # Detect format: WAV (RIFF header) or WebM/other
+        ext = ".wav" if raw_bytes[:4] == b"RIFF" else ".webm"
+        stt_path = tempfile.mktemp(suffix=ext)
+        Path(stt_path).write_bytes(raw_bytes)
 
         # ── STT ──
         transcript, stt_time, stt_err = await asyncio.get_event_loop().run_in_executor(
@@ -212,7 +189,7 @@ class Pipeline:
         if tr_err:
             return {"error": tr_err, "transcript": transcript, "translated_text": translated}
 
-        # ── TTS + LLM in parallel ──
+        # ── Fire TTS + LLM in parallel ──
         tts_future = asyncio.get_event_loop().run_in_executor(
             executor, self._tts, translated, target_lang, speaker
         )
@@ -220,25 +197,35 @@ class Pipeline:
             executor, self._extract_entities, transcript
         )
 
+        # ── Await TTS only, return immediately ──
         (audio_path, tts_time, tts_err) = await tts_future
-        llm_result = await llm_future
-        wall_total = round(time.time() - wall_start, 2)
 
         audio_b64 = None
         if audio_path and Path(audio_path).exists():
             audio_b64 = base64.b64encode(Path(audio_path).read_bytes()).decode()
 
+        wall_total = round(time.time() - wall_start, 2)
+
+        # ── LLM runs in background, callback when done ──
+        async def _wait_llm():
+            llm_result = await llm_future
+            if on_entities and llm_result and not llm_result.get("error"):
+                llm_result["_llm_latency"] = llm_result.get("_llm_latency", 0)
+                await on_entities(llm_result, transcript, translated)
+
+        asyncio.create_task(_wait_llm())
+
         return {
             "transcript": transcript,
             "translated_text": translated,
-            "entities": llm_result,
+            "entities": None,  # Entities arrive later via callback
             "audio_path": audio_path,
             "audio_b64": audio_b64,
             "timing": {
                 "stt": round(stt_time, 2),
                 "translate": round(tr_time, 2),
                 "tts": round(tts_time, 2),
-                "llm": llm_result.get("_llm_latency", 0),
+                "llm": 0,
                 "total": wall_total,
             },
             "tts_error": tts_err,

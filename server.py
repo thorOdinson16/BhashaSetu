@@ -82,9 +82,30 @@ async def upload_and_relay(
     source_lang: str = Form("kn-IN"),
     target_lang: str = Form("hi-IN"),
     speaker: str = Form("shubh"),
+    session_id: str = Form(""),
 ):
     audio_bytes = await file.read()
-    result = await pipeline.process_utterance(audio_bytes, source_lang, target_lang, speaker)
+
+    # Build entity callback for this session
+    on_entities = None
+    if session_id and session_id in sessions:
+        session = sessions[session_id]
+        async def _broadcast_entities(entities, transcript, translated):
+            for conn in session.get("connections", []):
+                try:
+                    await conn.send_json({
+                        "type": "entities",
+                        "entities": entities,
+                        "transcript": transcript,
+                        "translated": translated,
+                    })
+                except Exception:
+                    pass
+        on_entities = _broadcast_entities
+
+    result = await pipeline.process_utterance(
+        audio_bytes, source_lang, target_lang, speaker, on_entities=on_entities
+    )
 
     if "error" in result:
         return JSONResponse(result, status_code=500)
@@ -95,14 +116,8 @@ async def upload_and_relay(
         shutil.copy(result["audio_path"], out_path)
         result["audio_url"] = f"/audio/{out_path.name}"
 
-    if result.get("entities") and not result["entities"].get("error"):
-        receipt_id = str(uuid.uuid4())[:8]
-        receipt = pipeline.generate_receipt([result["entities"]])
-        receipt["receipt_id"] = receipt_id
-        receipt["source_transcript"] = result.get("transcript", "")
-        receipt["translated_text"] = result.get("translated_text", "")
-        receipts[receipt_id] = receipt
-        result["receipt_id"] = receipt_id
+    # Entities arrive later via WebSocket callback; skip receipt here
+    result["entities"] = None
 
     return JSONResponse(result)
 
