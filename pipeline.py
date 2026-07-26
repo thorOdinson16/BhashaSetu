@@ -17,12 +17,12 @@ load_dotenv()
 
 executor = ThreadPoolExecutor(max_workers=6)
 
-ENTITY_PROMPT = """Extract entities AND translate to natural {target}. JSON only, no markdown.
+ENTITY_PROMPT = """Extract entities AND translate to natural {target}. Return all entity values in English. JSON only, no markdown.
 
 Transcript: "{transcript}"
 
 Return:
-{{"translation":"natural {target} translation","date":"final date after correction or null","time":"time or null","name":"person name or null","phone":"phone or null","address":"address or null","amount":"amount or null","correction_detected":true/false,"correction_old_value":"old or null","correction_new_value":"new or null"}}"""
+{{"translation":"natural {target} translation","date":"final date in English or null","time":"time in English or null","name":"person name in English or null","phone":"phone or null","address":"address in English or null","amount":"amount or null","correction_detected":true/false,"correction_old_value":"old or null","correction_new_value":"new or null"}}"""
 
 ENHANCED_TRANSLATION_PROMPT = """Translate naturally to {target}. Preserve names, numbers, dates exactly. Output only the translation.
 
