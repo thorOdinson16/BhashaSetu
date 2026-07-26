@@ -54,6 +54,26 @@ JSON format:
   ]
 }}"""
 
+RECEIPT_PROMPT = """Generate a bilingual receipt in Kannada and Hindi from these entities.
+Return ONLY valid JSON, no other text. No markdown fences.
+
+Entities: {entities}
+
+JSON format:
+{{
+  "entities": [
+    {{
+      "type": "date|time|name|phone|address|amount",
+      "value": "final value in English",
+      "kn": "value in Kannada",
+      "hi": "value in Hindi",
+      "correction_detected": false,
+      "correction_old_value": null,
+      "correction_new_value": null
+    }}
+  ]
+}}"""
+
 
 def _convert_audio(raw_bytes: bytes) -> bytes:
     """Convert non-WAV audio (WebM, OGG, MP3) to 16kHz mono WAV via ffmpeg.
@@ -84,7 +104,7 @@ class Pipeline:
         self.client = SarvamAI(api_subscription_key=api_key)
 
     def _stt(self, audio_path: str) -> tuple[str, float, str | None]:
-        """Transcribe audio via Saaras v3 REST. Returns (transcript, elapsed, error)."""
+        """Transcribe audio via Saaras v3 REST."""
         t0 = time.time()
         try:
             with open(audio_path, "rb") as f:
@@ -92,22 +112,6 @@ class Pipeline:
                     file=f, model="saaras:v3", mode="transcribe"
                 )
             elapsed = time.time() - t0
-            return resp.transcript, elapsed, None
-        except Exception:
-            pass
-
-        # Fallback: try with converted WAV bytes
-        try:
-            raw = Path(audio_path).read_bytes()
-            wav_bytes = _convert_audio(raw)
-            tmp = tempfile.mktemp(suffix=".wav")
-            Path(tmp).write_bytes(wav_bytes)
-            with open(tmp, "rb") as f:
-                resp = self.client.speech_to_text.transcribe(
-                    file=f, model="saaras:v3", mode="transcribe"
-                )
-            elapsed = time.time() - t0
-            os.unlink(tmp)
             return resp.transcript, elapsed, None
         except Exception as e:
             elapsed = time.time() - t0
@@ -187,9 +191,12 @@ class Pipeline:
 
         wall_start = time.time()
 
-        # Save raw bytes to temp file (_stt handles format internally)
+        # Always convert non-WAV audio via ffmpeg (browser WebM → 16kHz WAV)
+        wav_bytes = await asyncio.get_event_loop().run_in_executor(
+            executor, _convert_audio, raw_bytes
+        )
         stt_path = tempfile.mktemp(suffix=".wav")
-        Path(stt_path).write_bytes(raw_bytes)
+        Path(stt_path).write_bytes(wav_bytes)
 
         # ── STT ──
         transcript, stt_time, stt_err = await asyncio.get_event_loop().run_in_executor(
